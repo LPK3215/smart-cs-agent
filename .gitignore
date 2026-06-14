@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+*.so
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Database
+data/
+*.db
+*.sqlite3
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+smart-cs-web/dist/
+smart-cs-web/node_modules/
+
+# Vite cache
+.vite/
+
+# Logs
+*.log

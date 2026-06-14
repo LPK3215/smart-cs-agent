@@ -1,0 +1,569 @@
+"""LangChain ReAct Agent — real intelligent agent with autonomous tool calling.
+
+The LLM decides: which tools to call, in what order, whether to chain multiple tools,
+whether to ask for more info, or whether to transfer to human.
+
+Features:
+- Tool Calling: 5 tools the agent can autonomously invoke
+- Streaming: SSE-compatible streaming via astream_events
+- Memory: Sliding window with LLM summarization
+- Guardrails: Input validation, content safety, max iterations
+- Observability: Full reasoning trace (tool calls, inputs, outputs)
+- Error Recovery: Fallback strategies on tool/API failure
+"""
+
+import json
+import time
+import asyncio
+from datetime import datetime
+from typing import AsyncGenerator
+
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.tools import tool
+from langchain.agents import create_agent
+
+from app.config import (
+    DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL,
+    MAX_ITERATIONS, TOOL_TIMEOUT_SEC,
+)
+from app.knowledge_base import FAQ_DATA
+from app.guardrails import sanitize_output
+from app.memory import build_chat_history, summarize_history
+
+
+# ============================================================
+# Tool Definitions — capabilities the Agent can invoke
+# ============================================================
+
+MOCK_ORDERS = {
+    "ORD20260610001": {"status": "已签收", "product": "蓝牙耳机 Pro", "amount": 299, "logistics": "顺丰 SF1234567890", "ordered_at": "2026-06-10"},
+    "ORD20260608002": {"status": "配送中", "product": "手机壳套装", "amount": 59, "logistics": "中通 ZT9876543210", "ordered_at": "2026-06-08"},
+    "ORD20260605003": {"status": "已发货", "product": "充电宝 20000mAh", "amount": 129, "logistics": "圆通 YT5678901234", "ordered_at": "2026-06-05"},
+    "ORD20260603004": {"status": "待发货", "product": "数据线三合一", "amount": 29, "logistics": "待分配", "ordered_at": "2026-06-03"},
+}
+
+MOCK_REFUNDS = {
+    "REF001": {"order_id": "ORD20260610001", "status": "审核中", "amount": 299, "reason": "商品质量问题", "created_at": "2026-06-12", "eta": "1-2个工作日审核"},
+    "REF002": {"order_id": "ORD20260605003", "status": "已通过", "amount": 129, "reason": "不想要了", "created_at": "2026-06-11", "eta": "3-5个工作日到账"},
+}
+
+
+@tool
+def search_faq(query: str) -> str:
+    """Search the FAQ knowledge base for answers to common questions.
+    Use this when the user asks about policies, procedures, or common issues like
+    refunds, orders, coupons, account issues, etc.
+
+    Args:
+        query: The user's question or keywords to search for.
+    """
+    best = None
+    best_score = 0
+    for faq in FAQ_DATA:
+        score = 0
+        for kw in faq["keywords"]:
+            if kw in query:
+                score += len(kw) * 2
+        for char in query:
+            if char in faq["question"]:
+                score += 0.5
+        if score > best_score:
+            best_score = score
+            best = faq
+
+    if best and best_score > 1:
+        return json.dumps({
+            "found": True, "question": best["question"],
+            "answer": best["answer"], "category": best["intent"],
+        }, ensure_ascii=False)
+    return json.dumps({"found": False, "message": "未找到匹配的FAQ，建议转人工客服"}, ensure_ascii=False)
+
+
+@tool
+def query_order(order_id: str = "") -> str:
+    """Query order status and logistics information.
+    Use this when the user wants to check their order status, track a package,
+    or know delivery details.
+
+    Args:
+        order_id: The order ID to query. If empty, return general guidance.
+    """
+    if not order_id:
+        return json.dumps({
+            "hint": True,
+            "message": "请提供订单号以查询订单状态。您可以在APP「我的订单」中找到订单号，格式如 ORD20260610001"
+        }, ensure_ascii=False)
+
+    if order_id in MOCK_ORDERS:
+        order = MOCK_ORDERS[order_id]
+        return json.dumps({
+            "found": True, "order_id": order_id, "status": order["status"],
+            "product": order["product"], "amount": order["amount"],
+            "logistics": order["logistics"], "ordered_at": order["ordered_at"],
+        }, ensure_ascii=False)
+
+    return json.dumps({
+        "found": False,
+        "message": f"未找到订单 {order_id}，请确认订单号是否正确。可尝试的示例订单号：ORD20260610001, ORD20260608002"
+    }, ensure_ascii=False)
+
+
+@tool
+def check_refund(refund_id: str = "", order_id: str = "") -> str:
+    """Check refund eligibility, status, and timeline.
+    Use this when the user asks about refund progress, whether they can get a refund,
+    or why a refund was rejected.
+
+    Args:
+        refund_id: The refund ID to check (optional).
+        order_id: The order ID to check refund for (optional).
+    """
+    if refund_id and refund_id in MOCK_REFUNDS:
+        ref = MOCK_REFUNDS[refund_id]
+        return json.dumps({
+            "found": True, "refund_id": refund_id, "order_id": ref["order_id"],
+            "status": ref["status"], "amount": ref["amount"],
+            "reason": ref["reason"], "eta": ref["eta"],
+        }, ensure_ascii=False)
+
+    if order_id:
+        if order_id in MOCK_ORDERS:
+            order = MOCK_ORDERS[order_id]
+            return json.dumps({
+                "eligible": True,
+                "message": f"订单 {order_id}（{order['product']}）当前状态：{order['status']}，可申请退款。",
+                "amount": order["amount"]
+            }, ensure_ascii=False)
+        return json.dumps({
+            "eligible": False,
+            "message": f"未找到订单 {order_id}，请确认订单号。示例订单号：ORD20260610001"
+        }, ensure_ascii=False)
+
+    return json.dumps({
+        "hint": True,
+        "message": "请提供退款单号或订单号以查询退款状态。示例：退款单号 REF001、REF002，订单号 ORD20260610001"
+    }, ensure_ascii=False)
+
+
+@tool
+def troubleshoot(issue_type: str, description: str = "") -> str:
+    """Diagnose technical issues and provide solutions.
+    Use this when the user reports app crashes, login problems, payment failures,
+    or other technical difficulties.
+
+    Args:
+        issue_type: Type of issue: crash, login, payment, slow, other.
+        description: Detailed description of the problem.
+    """
+    solutions = {
+        "crash": {
+            "steps": [
+                "1. 清理APP缓存：设置 → 应用管理 → 清除缓存",
+                "2. 更新到最新版本：应用商店检查更新",
+                "3. 卸载重装：长按APP图标 → 卸载 → 重新下载安装",
+                "4. 检查手机系统版本是否低于最低要求（Android 8.0 / iOS 13）",
+            ],
+            "tip": "如果重装后仍闪退，可能是手机兼容性问题，建议转人工技术支持。"
+        },
+        "login": {
+            "steps": [
+                "1. 忘记密码：登录页 →「忘记密码」→ 手机验证码重置",
+                "2. 收不到验证码：检查手机号是否正确 → 查看短信拦截 → 等待60秒后重试",
+                "3. 账号被锁定：连续输错5次密码会锁定30分钟，之后自动解锁",
+                "4. 第三方登录失败：检查微信/QQ是否正常授权",
+            ],
+            "tip": "如果以上方法均无效，可能是账号异常，需要人工客服解锁。"
+        },
+        "payment": {
+            "steps": [
+                "1. 检查网络连接是否正常",
+                "2. 更换支付方式（微信/支付宝/银行卡）",
+                "3. 检查银行卡余额和限额",
+                "4. 确认是否超过单笔支付限额",
+            ],
+            "tip": "如果支付扣款但订单未生成，请保留支付截图联系人工客服核实。"
+        },
+        "slow": {
+            "steps": [
+                "1. 切换到更稳定的网络（WiFi/4G）",
+                "2. 关闭VPN/代理软件",
+                "3. 清理APP缓存后重启",
+                "4. 检查手机存储空间是否不足",
+            ],
+            "tip": "如果是特定页面加载慢，可能是服务器维护中，请稍后重试。"
+        },
+    }
+
+    key = issue_type.lower().strip()
+    if key in solutions:
+        sol = solutions[key]
+        return json.dumps({"found": True, "issue_type": key, "steps": sol["steps"], "tip": sol["tip"]}, ensure_ascii=False)
+
+    return json.dumps({
+        "found": True, "issue_type": "other",
+        "steps": [
+            "1. 尝试清理缓存并重启APP",
+            "2. 更新到最新版本",
+            "3. 切换网络环境重试",
+            "4. 如果问题持续，请详细描述错误信息以便进一步诊断",
+        ],
+        "tip": "提供具体的错误提示或截图可以帮助更快定位问题。"
+    }, ensure_ascii=False)
+
+
+@tool
+def transfer_to_human(reason: str = "") -> str:
+    """Transfer the conversation to a human customer service agent.
+    Use this when: the user explicitly requests human help, the issue is beyond
+    automated handling, the user is dissatisfied with AI responses, or complex
+    complaints need human judgment.
+
+    Args:
+        reason: The reason for transferring to human agent.
+    """
+    return json.dumps({
+        "transferred": True, "reason": reason or "用户请求转人工",
+        "wait_time": "预计2-3分钟", "working_hours": "9:00-22:00",
+        "message": "正在为您转接人工客服，请稍候...",
+    }, ensure_ascii=False)
+
+
+ALL_TOOLS = [search_faq, query_order, check_refund, troubleshoot, transfer_to_human]
+
+
+# ============================================================
+# Agent Construction — ReAct Agent with Tool Calling
+# ============================================================
+
+SYSTEM_PROMPT = """你是一个专业的智能客服Agent，名叫「小智」。你可以自主决策使用多种工具来帮助用户解决问题。
+
+## 你的能力
+你可以自主决定使用哪些工具来解决问题，也可以组合使用多个工具。不要猜测答案——先用工具获取信息，再回答用户。
+
+## 可用工具
+- search_faq: 搜索FAQ知识库，获取常见问题的标准答案
+- query_order: 查询订单状态和物流信息（需要订单号）
+- check_refund: 查询退款资格和退款进度（需要退款单号或订单号）
+- troubleshoot: 诊断技术问题并提供解决方案（需要问题类型）
+- transfer_to_human: 转接人工客服（当问题超出你的处理范围时）
+
+## 决策规则
+1. 用户问退款相关问题 → 先用 search_faq 查知识库，再用 check_refund 查具体退款状态
+2. 用户问订单相关问题 → 先用 search_faq 查知识库，再用 query_order 查具体订单
+3. 用户报技术问题 → 先用 troubleshoot 诊断，提供解决方案
+4. 用户明确要求转人工 → 直接调用 transfer_to_human
+5. 用户问题复杂或你无法解决 → 主动调用 transfer_to_human 并说明原因
+6. 如果工具返回的信息不够，可以追问用户获取更多信息（如订单号）
+
+## 回答要求
+- 基于工具返回的数据回答，不要编造信息
+- 用简洁友好的中文回复
+- 如果需要用户补充信息（如订单号），明确告知
+- 在回答末尾标注信息来源格式：[知识库] / [系统查询] / [人工客服]
+"""
+
+llm = ChatOpenAI(
+    api_key=DEEPSEEK_API_KEY,
+    base_url=DEEPSEEK_BASE_URL,
+    model=DEEPSEEK_MODEL,
+    temperature=0.2,
+    max_tokens=1024,
+    streaming=True,  # Enable streaming for SSE
+)
+
+react_agent = create_agent(
+    model=llm,
+    tools=ALL_TOOLS,
+    system_prompt=SYSTEM_PROMPT,
+)
+
+
+# ============================================================
+# Metadata extraction from agent execution
+# ============================================================
+
+def _extract_metadata(messages: list) -> dict:
+    """Extract intent, source, confidence, trace from agent messages."""
+    intent = "unknown"
+    source = "ai"
+    confidence = 0.7
+    need_human = False
+    tools_called = []
+    trace = []
+
+    for msg in messages:
+        if hasattr(msg, 'tool_calls') and msg.tool_calls:
+            for tc in msg.tool_calls:
+                tool_name = tc.get("name", "")
+                tool_args = tc.get("args", {})
+                tools_called.append(tool_name)
+                trace.append({
+                    "type": "tool_call",
+                    "tool": tool_name,
+                    "input": tool_args,
+                })
+
+                if tool_name == "check_refund":
+                    intent = "refund"
+                elif tool_name == "query_order":
+                    intent = "order"
+                elif tool_name == "troubleshoot":
+                    intent = "tech"
+                elif tool_name == "transfer_to_human":
+                    intent = "human"
+                    need_human = True
+                elif tool_name == "search_faq":
+                    if intent == "unknown":
+                        intent = "faq"
+
+                if tool_name == "search_faq":
+                    source = "faq"
+                    confidence = 0.9
+                elif tool_name in ("query_order", "check_refund"):
+                    source = "system"
+                    confidence = 0.95
+                elif tool_name == "transfer_to_human":
+                    source = "human"
+
+        # Tool response messages
+        if hasattr(msg, 'name') and hasattr(msg, 'content'):
+            try:
+                output_data = json.loads(msg.content) if isinstance(msg.content, str) else msg.content
+            except (json.JSONDecodeError, TypeError):
+                output_data = msg.content
+            trace.append({
+                "type": "tool_result",
+                "tool": getattr(msg, 'name', ''),
+                "output": output_data,
+            })
+
+    if len(tools_called) > 1:
+        confidence = min(confidence + 0.05, 1.0)
+
+    # Add reasoning step
+    if tools_called:
+        trace.insert(0, {
+            "type": "reasoning",
+            "thought": f"Agent 决定调用工具：{', '.join(tools_called)}",
+        })
+
+    return {
+        "intent": intent,
+        "source": source,
+        "confidence": confidence,
+        "need_human": need_human,
+        "tools_called": tools_called,
+        "trace": trace,
+    }
+
+
+# ============================================================
+# Non-streaming chat (for backward compat)
+# ============================================================
+
+async def agent_chat(user_input: str, session_id: str = None,
+                     history: list[dict] = None, session_summary: str = "") -> dict:
+    """Run the ReAct Agent and return full result."""
+    chat_history = build_chat_history(history or [], session_summary)
+    input_messages = chat_history + [HumanMessage(content=user_input)]
+
+    try:
+        result = await react_agent.ainvoke(
+            {"messages": input_messages},
+            config={"recursion_limit": MAX_ITERATIONS},
+        )
+
+        output_messages = result.get("messages", [])
+        final_content = ""
+        for msg in reversed(output_messages):
+            if isinstance(msg, AIMessage) and msg.content and not getattr(msg, 'tool_calls', None):
+                final_content = msg.content
+                break
+            elif isinstance(msg, AIMessage) and msg.content:
+                final_content = msg.content
+                break
+
+        if not final_content:
+            final_content = "抱歉，我遇到了一些问题，请稍后重试或转人工客服。"
+
+        final_content = sanitize_output(final_content)
+        metadata = _extract_metadata(output_messages)
+
+        return {
+            "content": final_content,
+            "intent": metadata["intent"],
+            "source": metadata["source"],
+            "confidence": metadata["confidence"],
+            "need_human": metadata["need_human"],
+            "tools_called": metadata["tools_called"],
+            "trace": metadata["trace"],
+        }
+
+    except Exception as e:
+        error_msg = str(e)
+        # Specific handling for auth errors
+        if "Authentication" in error_msg or "401" in error_msg or "api key" in error_msg.lower():
+            return {
+                "content": "⚠️ AI 服务认证失败，请检查 API Key 配置。当前仍可使用知识库检索和系统查询功能。",
+                "intent": "unknown", "source": "ai", "confidence": 0.0,
+                "need_human": True, "tools_called": [], "trace": [],
+            }
+        # Fallback: simple LLM call
+        try:
+            from langchain_core.prompts import ChatPromptTemplate
+            simple_prompt = ChatPromptTemplate.from_messages([
+                ("system", "你是智能客服助手，请简洁回答用户问题。如果无法处理，建议用户转人工客服。"),
+                ("human", "{input}")
+            ])
+            chain = simple_prompt | llm
+            fallback_result = await chain.ainvoke({"input": user_input})
+            return {
+                "content": sanitize_output(fallback_result.content),
+                "intent": "unknown", "source": "ai", "confidence": 0.3,
+                "need_human": True, "tools_called": [], "trace": [],
+            }
+        except Exception:
+            return {
+                "content": "抱歉，系统暂时无法响应。请稍后重试或联系人工客服。",
+                "intent": "unknown", "source": "ai", "confidence": 0.0,
+                "need_human": True, "tools_called": [], "trace": [],
+            }
+
+
+# ============================================================
+# Streaming chat — SSE via astream_events
+# ============================================================
+
+async def agent_chat_stream(user_input: str, session_id: str = None,
+                             history: list[dict] = None,
+                             session_summary: str = "") -> AsyncGenerator[dict, None]:
+    """Stream the ReAct Agent execution via astream_events.
+
+    Yields event dicts:
+    - {"type": "token", "content": "..."} — LLM token stream
+    - {"type": "tool_start", "tool": "...", "input": {...}} — Tool call started
+    - {"type": "tool_end", "tool": "...", "output": {...}, "duration_ms": N} — Tool call completed
+    - {"type": "done", "intent": "...", "source": "...", ...} — Agent execution complete
+    - {"type": "error", "content": "..."} — Error occurred
+    """
+    chat_history = build_chat_history(history or [], session_summary)
+    input_messages = chat_history + [HumanMessage(content=user_input)]
+
+    tools_called = []
+    trace = []
+    tool_start_times = {}
+
+    try:
+        async for event in react_agent.astream_events(
+            {"messages": input_messages},
+            version="v2",
+            config={"recursion_limit": MAX_ITERATIONS},
+        ):
+            kind = event.get("event", "")
+
+            # LLM token stream
+            if kind == "on_chat_model_stream":
+                chunk = event.get("data", {}).get("chunk")
+                if chunk and hasattr(chunk, "content") and chunk.content:
+                    token = chunk.content if isinstance(chunk.content, str) else ""
+                    if token:
+                        yield {"type": "token", "content": token}
+
+            # Tool call started
+            elif kind == "on_tool_start":
+                tool_name = event.get("name", "")
+                tool_input = event.get("data", {}).get("input", {})
+                tools_called.append(tool_name)
+                tool_start_times[tool_name] = time.time()
+                trace.append({"type": "tool_call", "tool": tool_name, "input": tool_input})
+                yield {"type": "tool_start", "tool": tool_name, "input": tool_input}
+
+            # Tool call completed
+            elif kind == "on_tool_end":
+                tool_name = event.get("name", "")
+                tool_output = event.get("data", {}).get("output", {})
+                start = tool_start_times.pop(tool_name, time.time())
+                duration = int((time.time() - start) * 1000)
+
+                # Parse tool output
+                if isinstance(tool_output, str):
+                    try:
+                        tool_output = json.loads(tool_output)
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+
+                trace.append({"type": "tool_result", "tool": tool_name, "output": tool_output, "duration_ms": duration})
+                yield {"type": "tool_end", "tool": tool_name, "output": tool_output, "duration_ms": duration}
+
+            # LLM call completed (final)
+            elif kind == "on_chat_model_end":
+                pass  # We handle streaming tokens above
+
+        # Extract metadata
+        metadata = _extract_metadata_from_trace(tools_called, trace)
+
+        yield {
+            "type": "done",
+            "intent": metadata["intent"],
+            "source": metadata["source"],
+            "confidence": metadata["confidence"],
+            "need_human": metadata["need_human"],
+            "tools_called": tools_called,
+            "trace": trace,
+        }
+
+    except Exception as e:
+        yield {
+            "type": "error",
+            "content": f"Agent 执行出错：{str(e)}",
+        }
+
+
+def _extract_metadata_from_trace(tools_called: list, trace: list) -> dict:
+    """Extract metadata from the accumulated trace."""
+    intent = "unknown"
+    source = "ai"
+    confidence = 0.7
+    need_human = False
+
+    for tool_name in tools_called:
+        if tool_name == "check_refund":
+            intent = "refund"
+        elif tool_name == "query_order":
+            intent = "order"
+        elif tool_name == "troubleshoot":
+            intent = "tech"
+        elif tool_name == "transfer_to_human":
+            intent = "human"
+            need_human = True
+        elif tool_name == "search_faq":
+            if intent == "unknown":
+                intent = "faq"
+
+        if tool_name == "search_faq":
+            source = "faq"
+            confidence = 0.9
+        elif tool_name in ("query_order", "check_refund"):
+            source = "system"
+            confidence = 0.95
+        elif tool_name == "transfer_to_human":
+            source = "human"
+
+    if len(tools_called) > 1:
+        confidence = min(confidence + 0.05, 1.0)
+
+    if not tools_called:
+        source = "ai"
+        confidence = 0.6
+
+    return {
+        "intent": intent,
+        "source": source,
+        "confidence": confidence,
+        "need_human": need_human,
+    }
+
+
+# Backward-compatible alias
+chat_pipeline = agent_chat
