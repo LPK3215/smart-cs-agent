@@ -106,6 +106,15 @@ async def init_db():
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            display_name TEXT DEFAULT '',
+            role TEXT NOT NULL DEFAULT 'user',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
     """)
     await db.commit()
     logger.info("Database tables initialized")
@@ -124,9 +133,12 @@ async def create_session_db(session_id: str, user_id: str) -> dict:
     return {"id": session_id, "title": "新对话", "userId": user_id, "status": "active", "createdAt": now, "updatedAt": now}
 
 
-async def get_sessions_db() -> list:
+async def get_sessions_db(user_id: str = None) -> list:
     db = await get_db()
-    cursor = await db.execute("SELECT * FROM sessions ORDER BY updated_at DESC")
+    if user_id:
+        cursor = await db.execute("SELECT * FROM sessions WHERE user_id = ? ORDER BY updated_at DESC", (user_id,))
+    else:
+        cursor = await db.execute("SELECT * FROM sessions ORDER BY updated_at DESC")
     rows = await cursor.fetchall()
     return [dict(r) for r in rows]
 
@@ -322,3 +334,38 @@ async def check_rate_limit(session_id: str, limit: int) -> bool:
     )
     await db.commit()
     return True
+
+
+# ===== Users =====
+
+async def create_user_db(user_id: str, username: str, password_hash: str,
+                          display_name: str = "", role: str = "user") -> dict:
+    now = datetime.utcnow().isoformat()
+    db = await get_db()
+    await db.execute(
+        "INSERT INTO users (id, username, password_hash, display_name, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (user_id, username, password_hash, display_name, role, now, now)
+    )
+    await db.commit()
+    return {"id": user_id, "username": username, "displayName": display_name, "role": role, "createdAt": now}
+
+
+async def get_user_by_username_db(username: str) -> dict | None:
+    db = await get_db()
+    cursor = await db.execute("SELECT * FROM users WHERE username = ?", (username,))
+    row = await cursor.fetchone()
+    return dict(row) if row else None
+
+
+async def get_user_by_id_db(user_id: str) -> dict | None:
+    db = await get_db()
+    cursor = await db.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    row = await cursor.fetchone()
+    return dict(row) if row else None
+
+
+async def count_users_db() -> int:
+    db = await get_db()
+    cursor = await db.execute("SELECT COUNT(*) FROM users")
+    row = await cursor.fetchone()
+    return row[0]

@@ -22,7 +22,7 @@ import logging
 from datetime import datetime
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
@@ -42,19 +42,21 @@ logging.getLogger("langchain_core").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 from app.config import CORS_ORIGINS, RATE_LIMIT_PER_MIN, SUMMARY_THRESHOLD
-from app.models import ChatRequest, SessionCreate, SessionUpdate, RatingCreate
+from app.models import ChatRequest, SessionCreate, SessionUpdate, RatingCreate, LoginRequest, RegisterRequest
 from app.database import (
     init_db, close_db, create_session_db, get_sessions_db, get_session_db,
     update_session_db, add_message_db, get_messages_db, get_all_messages_db,
     add_rating_db, get_ratings_db, add_tool_audit, get_tool_audit_db,
-    check_rate_limit,
+    check_rate_limit, create_user_db, get_user_by_username_db, get_user_by_id_db,
+    count_users_db,
 )
 from app.agent import agent_chat, agent_chat_stream
 from app.guardrails import validate_input, check_content_safety, sanitize_output
 from app.memory import summarize_history
 from app.knowledge_base import FAQ_DATA
 from app.vector_store import init_vector_store
-from app.user_context import get_user_context, extract_memories_from_session, update_user_profile
+from app.user_context import get_user_context, extract_memories_from_session, update_user_profile, get_user_memories, get_user_profile
+from app.auth import hash_password, verify_password, create_access_token, get_current_user, get_optional_user, require_admin
 
 
 @asynccontextmanager
@@ -62,6 +64,15 @@ async def lifespan(app: FastAPI):
     logger.info("Smart CS Agent API starting...")
     await init_db()
     await init_vector_store(FAQ_DATA)
+
+    # Create default admin user if no users exist
+    user_count = await count_users_db()
+    if user_count == 0:
+        admin_id = f"user_admin"
+        admin_hash = hash_password("admin123")
+        await create_user_db(admin_id, "admin", admin_hash, "管理员", "admin")
+        logger.info("Default admin user created (admin / admin123)")
+
     logger.info("Startup complete — ready to serve requests")
     yield
     logger.info("Shutting down...")
@@ -98,19 +109,81 @@ async def health_check():
     }
 
 
+# ===== Auth =====
+
+@app.post("/api/auth/register")
+async def register(req: RegisterRequest):
+    existing = await get_user_by_username_db(req.username)
+    if existing:
+        raise HTTPException(400, "用户名已被注册")
+
+    user_id = f"user_{uuid.uuid4().hex[:8]}"
+    pw_hash = hash_password(req.password)
+    user = await create_user_db(user_id, req.username, pw_hash, req.displayName or req.username, "user")
+
+    token = create_access_token(user_id, "user")
+    return {
+        "accessToken": token,
+        "tokenType": "bearer",
+        "user": user,
+    }
+
+
+@app.post("/api/auth/login")
+async def login(req: LoginRequest):
+    user = await get_user_by_username_db(req.username)
+    if not user:
+        raise HTTPException(401, "用户名或密码错误")
+
+    if not verify_password(req.password, user["password_hash"]):
+        raise HTTPException(401, "用户名或密码错误")
+
+    token = create_access_token(user["id"], user["role"])
+    return {
+        "accessToken": token,
+        "tokenType": "bearer",
+        "user": {
+            "id": user["id"],
+            "username": user["username"],
+            "displayName": user["display_name"],
+            "role": user["role"],
+            "createdAt": user["created_at"],
+        },
+    }
+
+
+@app.get("/api/auth/me")
+async def get_me(user: dict = Depends(get_current_user)):
+    """Get current user info with profile and memories."""
+    profile = await get_user_profile(user["id"])
+    memories = await get_user_memories(user["id"], limit=10)
+    return {
+        "id": user["id"],
+        "username": user["username"],
+        "displayName": user["display_name"],
+        "role": user["role"],
+        "createdAt": user.get("createdAt", ""),
+        "profile": profile,
+        "memories": memories,
+    }
+
+
 # ===== Sessions =====
 
 @app.post("/api/sessions")
-async def create_session(req: SessionCreate = None):
+async def create_session(user: dict = Depends(get_current_user), req: SessionCreate = None):
     session_id = f"sess_{int(datetime.utcnow().timestamp())}_{uuid.uuid4().hex[:6]}"
-    user_id = (req.userId if req else None) or f"user_{uuid.uuid4().hex[:6]}"
+    user_id = user["id"]
     session = await create_session_db(session_id, user_id)
     return session
 
 
 @app.get("/api/sessions")
-async def list_sessions():
-    return await get_sessions_db()
+async def list_sessions(user: dict = Depends(get_current_user)):
+    # Admin sees all sessions, normal users see only their own
+    if user["role"] == "admin":
+        return await get_sessions_db()
+    return await get_sessions_db(user_id=user["id"])
 
 
 @app.get("/api/sessions/{session_id}")
@@ -383,14 +456,14 @@ async def list_ratings(session_id: str = None):
 # ===== Tool Audit =====
 
 @app.get("/api/tool-audit")
-async def get_tool_audit(session_id: str = None, limit: int = 100):
+async def get_tool_audit(session_id: str = None, limit: int = 100, user: dict = Depends(require_admin)):
     return await get_tool_audit_db(session_id, limit)
 
 
 # ===== Analytics =====
 
 @app.get("/api/analytics")
-async def get_analytics():
+async def get_analytics(user: dict = Depends(require_admin)):
     sessions = await get_sessions_db()
     all_msgs_raw = await get_all_messages_db()
     all_ratings = await get_ratings_db()

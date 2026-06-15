@@ -21,6 +21,11 @@ DATA_SOURCE = os.getenv("DATA_SOURCE", "mock")
 LIGHT_MODEL = os.getenv("LIGHT_MODEL", "")
 LIGHT_MODEL_ENABLED = bool(LIGHT_MODEL)
 
+# JWT Authentication
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-me-in-production-smart-cs-agent-2026")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRE_HOURS = int(os.getenv("JWT_EXPIRE_HOURS", "72"))
+
 # Database
 DATABASE_PATH = os.getenv("DATABASE_PATH", os.path.join(os.path.dirname(__file__), "..", "data", "smart_cs.db"))
 
