@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, nextTick } from 'vue'
 import type { Session, Message, StreamingToolCall } from '@/types'
 import * as api from '@/utils/api'
+import { parseSSEStream } from '@/utils/sse'
 
 export const useChatStore = defineStore('chat', () => {
   const sessions = ref<Session[]>([])
@@ -84,46 +85,28 @@ export const useChatStore = defineStore('chat', () => {
       const response = await api.streamChatMessage(sessionId, text)
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
-      const reader = response.body!.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
+      await parseSSEStream(response, {
+        onToken(content) {
+          streamingContent.value += content
+        },
+        onToolStart(tool) {
+          streamingToolCalls.value.push({ tool, done: false })
+        },
+        onToolEnd(tool) {
+          const tc = streamingToolCalls.value.find(t => t.tool === tool && !t.done)
+          if (tc) tc.done = true
+        },
+        onDone() {
+          // Will refresh in finally block
+        },
+        onError(content) {
+          console.error('Stream error:', content)
+        },
+      })
 
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          const data = line.slice(6).trim()
-          if (!data) continue
-
-          try {
-            const event = JSON.parse(data)
-
-            if (event.type === 'token') {
-              streamingContent.value += event.content
-              await nextTick()
-            } else if (event.type === 'tool_start') {
-              streamingToolCalls.value.push({ tool: event.tool, done: false })
-            } else if (event.type === 'tool_end') {
-              const tc = streamingToolCalls.value.find(t => t.tool === event.tool && !t.done)
-              if (tc) tc.done = true
-            } else if (event.type === 'done') {
-              // Refresh from server
-              sessions.value = await api.fetchSessions()
-              await loadMessages(sessionId)
-            } else if (event.type === 'error') {
-              console.error('Stream error:', event.content)
-            }
-          } catch {
-            // Skip malformed JSON
-          }
-        }
-      }
+      // Refresh from server after stream completes
+      sessions.value = await api.fetchSessions()
+      await loadMessages(sessionId)
     } catch (streamErr) {
       // Fallback to non-streaming
       console.warn('SSE failed, falling back:', streamErr)

@@ -11,8 +11,17 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AgentTrace: typeof import('./components/chat/AgentTrace.vue')['default']
     AppLayout: typeof import('./components/layout/AppLayout.vue')['default']
+    ChatHeader: typeof import('./components/chat/ChatHeader.vue')['default']
+    ChatInput: typeof import('./components/chat/ChatInput.vue')['default']
+    ChatSidebar: typeof import('./components/chat/ChatSidebar.vue')['default']
+    MessageBubble: typeof import('./components/chat/MessageBubble.vue')['default']
+    MessageList: typeof import('./components/chat/MessageList.vue')['default']
+    QuickActions: typeof import('./components/chat/QuickActions.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    SessionDetailModal: typeof import('./components/chat/SessionDetailModal.vue')['default']
+    StreamingIndicator: typeof import('./components/chat/StreamingIndicator.vue')['default']
   }
 }
