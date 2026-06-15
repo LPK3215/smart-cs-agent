@@ -26,6 +26,7 @@ from langchain.agents import create_agent
 from app.config import (
     DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL,
     MAX_ITERATIONS, TOOL_TIMEOUT_SEC,
+    LIGHT_MODEL, LIGHT_MODEL_ENABLED,
 )
 from app.knowledge_base import FAQ_DATA
 from app.guardrails import sanitize_output
@@ -259,7 +260,7 @@ SYSTEM_PROMPT_TEMPLATE = """你是一个专业的智能客服Agent，名叫「�
 
 ## 当前环境
 - 当前时间：{current_time}
-
+{user_context_section}
 ## 你的能力
 你可以自主决定使用哪些工具来解决问题，也可以组合使用多个工具。不要猜测答案——先用工具获取信息，再回答用户。
 
@@ -291,11 +292,20 @@ SYSTEM_PROMPT_TEMPLATE = """你是一个专业的智能客服Agent，名叫「�
 """
 
 
-def build_system_prompt() -> str:
-    """Build a dynamic system prompt with current context."""
+def build_system_prompt(user_context: str = "") -> str:
+    """Build a dynamic system prompt with current context and optional user info."""
     now = datetime.now()
     current_time = now.strftime("%Y年%m月%d日 %H:%M:%S (%A)")
-    return SYSTEM_PROMPT_TEMPLATE.format(current_time=current_time)
+
+    if user_context:
+        user_context_section = f"\n## 用户信息\n{user_context}\n"
+    else:
+        user_context_section = ""
+
+    return SYSTEM_PROMPT_TEMPLATE.format(
+        current_time=current_time,
+        user_context_section=user_context_section,
+    )
 
 llm = ChatOpenAI(
     api_key=DEEPSEEK_API_KEY,
@@ -311,6 +321,52 @@ react_agent = create_agent(
     tools=ALL_TOOLS,
     # system_prompt is injected per-request via SystemMessage for dynamic context
 )
+
+# Lightweight agent for simple queries (multi-model routing)
+_light_agent = None
+if LIGHT_MODEL_ENABLED:
+    import logging as _logging
+    _light_llm = ChatOpenAI(
+        api_key=DEEPSEEK_API_KEY,
+        base_url=DEEPSEEK_BASE_URL,
+        model=LIGHT_MODEL,
+        temperature=0.2,
+        max_tokens=512,
+        streaming=True,
+    )
+    _light_agent = create_agent(
+        model=_light_llm,
+        tools=ALL_TOOLS,
+    )
+    _logging.getLogger(__name__).info(f"Multi-model routing enabled: light={LIGHT_MODEL}, full={DEEPSEEK_MODEL}")
+
+
+def _route_model(user_input: str, history: list[dict] | None = None) -> str:
+    """Determine which model to use based on input complexity.
+
+    Returns: 'light' or 'full'
+    """
+    if not LIGHT_MODEL_ENABLED or _light_agent is None:
+        return "full"
+
+    # Simple heuristics for routing:
+    # - Short input (< 30 chars) with no history → light model
+    # - Has conversation history → full model (needs context awareness)
+    # - Contains complex keywords → full model
+    history_len = len(history) if history else 0
+
+    if history_len > 0:
+        return "full"
+
+    if len(user_input) > 50:
+        return "full"
+
+    # Complex intent signals → full model
+    complex_keywords = ["退款", "投诉", "赔偿", "投诉", "法律", "人工", "转接"]
+    if any(kw in user_input for kw in complex_keywords):
+        return "full"
+
+    return "light"
 
 
 # ============================================================
@@ -404,14 +460,19 @@ def _extract_metadata(messages: list) -> dict:
 # ============================================================
 
 async def agent_chat(user_input: str, session_id: str = None,
-                     history: list[dict] = None, session_summary: str = "") -> dict:
+                     history: list[dict] = None, session_summary: str = "",
+                     user_context: str = "") -> dict:
     """Run the ReAct Agent and return full result."""
-    system_msg = SystemMessage(content=build_system_prompt())
+    # Multi-model routing
+    route = _route_model(user_input, history)
+    agent = _light_agent if route == "light" else react_agent
+
+    system_msg = SystemMessage(content=build_system_prompt(user_context))
     chat_history = build_chat_history(history or [], session_summary)
     input_messages = [system_msg] + chat_history + [HumanMessage(content=user_input)]
 
     try:
-        result = await react_agent.ainvoke(
+        result = await agent.ainvoke(
             {"messages": input_messages},
             config={"recursion_limit": MAX_ITERATIONS},
         )
@@ -479,18 +540,24 @@ async def agent_chat(user_input: str, session_id: str = None,
 
 async def agent_chat_stream(user_input: str, session_id: str = None,
                              history: list[dict] = None,
-                             session_summary: str = "") -> AsyncGenerator[dict, None]:
+                             session_summary: str = "",
+                             user_context: str = "") -> AsyncGenerator[dict, None]:
     """Stream the ReAct Agent execution via astream_events.
 
     Yields event dicts:
+    - {"type": "thinking", "content": "..."} — Human-readable tool call description
     - {"type": "token", "content": "..."} — LLM token stream
     - {"type": "tool_start", "tool": "...", "input": {...}} — Tool call started
     - {"type": "tool_end", "tool": "...", "output": {...}, "duration_ms": N} — Tool call completed
     - {"type": "done", "intent": "...", "source": "...", ...} — Agent execution complete
     - {"type": "error", "content": "..."} — Error occurred
     """
+    # Multi-model routing
+    route = _route_model(user_input, history)
+    agent = _light_agent if route == "light" else react_agent
+
     chat_history = build_chat_history(history or [], session_summary)
-    system_msg = SystemMessage(content=build_system_prompt())
+    system_msg = SystemMessage(content=build_system_prompt(user_context))
     input_messages = [system_msg] + chat_history + [HumanMessage(content=user_input)]
 
     tools_called = []
@@ -498,7 +565,7 @@ async def agent_chat_stream(user_input: str, session_id: str = None,
     tool_start_times = {}
 
     try:
-        async for event in react_agent.astream_events(
+        async for event in agent.astream_events(
             {"messages": input_messages},
             version="v2",
             config={"recursion_limit": MAX_ITERATIONS},

@@ -16,6 +16,11 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-v3")
 # Data source: "mock" (default, hardcoded data) or "real" (backend APIs)
 DATA_SOURCE = os.getenv("DATA_SOURCE", "mock")
 
+# Lightweight model for simple queries (multi-model routing)
+# Set LIGHT_MODEL to a model name (e.g. "deepseek-chat") to enable routing
+LIGHT_MODEL = os.getenv("LIGHT_MODEL", "")
+LIGHT_MODEL_ENABLED = bool(LIGHT_MODEL)
+
 # Database
 DATABASE_PATH = os.getenv("DATABASE_PATH", os.path.join(os.path.dirname(__file__), "..", "data", "smart_cs.db"))
 

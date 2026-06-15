@@ -93,6 +93,19 @@ async def init_db():
             count INTEGER DEFAULT 0,
             window_start TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS user_memories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            content TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT 'general',
+            created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS user_profiles (
+            user_id TEXT PRIMARY KEY,
+            profile_data TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
     """)
     await db.commit()
     logger.info("Database tables initialized")

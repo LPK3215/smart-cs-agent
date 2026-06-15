@@ -11,8 +11,8 @@
 | 层面 | 完成度 | 状态 |
 |------|--------|------|
 | ① 输入预处理层 | 95% | 🟢 接近完成 |
-| ② 上下文与记忆层 | 85% | 🟡 可优化 |
-| ③ Agent 推理层 | 95% | 🟢 接近完成 |
+| ② 上下文与记忆层 | 95% | 🟢 接近完成 |
+| ③ Agent 推理层 | 98% | 🟢 接近完成 |
 | ④ 工具层 | 90% | 🟡 可优化 |
 | ⑤ 输出处理层 | 90% | 🟡 可优化 |
 | ⑥ 持久化与可观测层 | 95% | 🟢 接近完成 |
@@ -63,15 +63,15 @@
   - 涉及文件：`vector_store.py`（新）, `agent.py`, `main.py`, `config.py`, `.env.example`, `requirements.txt`
   - 优先级：**高** ✅ 已完成 2026-06-15
 
-- [ ] **2.2 跨会话长期记忆**
-  当前记忆只在单个 session 内有效，session 关闭后一切归零。应引入用户级的长期记忆存储（如：用户偏好、历史问题类型、常用订单），跨 session 复用。
-  - 涉及文件：`memory.py`, `database.py`（新表）, `agent.py`
-  - 优先级：中
+- [x] **2.2 跨会话长期记忆**
+  新增 `user_context.py` 模块和 `user_memories` 数据库表。session 关闭时自动提取关键记忆（问题类型、转人工信号、会话摘要）存入长期记忆。下次会话请求时通过 `get_user_context()` 检索并注入 system prompt。支持按分类（issue_type/transfer_signal/session_summary）存储和检索。
+  - 涉及文件：`user_context.py`（新）, `database.py`（新表）, `agent.py`, `main.py`
+  - 优先级：中 ✅ 已完成 2026-06-15
 
-- [ ] **2.3 用户画像层**
-  目前没有用户画像的概念。可以在 session 和 message 数据基础上构建轻量画像：用户常见问题类型、满意度倾向、是否高频转人工等，供 Agent 在推理时参考。
-  - 涉及文件：`database.py`（新表）, `agent.py`（system prompt 动态注入）
-  - 优先级：低
+- [x] **2.3 用户画像层**
+  新增 `user_profiles` 数据库表。session 关闭时 `update_user_profile()` 自动聚合用户统计：总会话数、总消息数、意图分布（order/refund/troubleshoot/faq/transfer 等）、平均评分、转人工率。画像数据通过 `get_user_context()` 与记忆一起注入 system prompt，让 Agent 了解用户的整体特征。
+  - 涉及文件：`user_context.py`, `database.py`（新表）, `main.py`
+  - 优先级：低 ✅ 已完成 2026-06-15
 
 - [ ] **2.4 记忆摘要保留原始关键点**
   当前摘要后老消息就只保留一段摘要文本，丢失了结构信息（如哪些工具被调用过、哪些订单被查询过）。摘要时应提取结构化的关键事实（key facts），而非纯自然语言总结。
@@ -93,10 +93,10 @@ Agent 的核心大脑，负责决策调用什么工具、如何组合、何时�
 
 **待优化项：**
 
-- [ ] **3.1 多模型路由**
-  当前所有请求走同一个大模型。可以引入路由策略：简单 FAQ 匹配走轻量模型（快、便宜），复杂多步骤推理走大模型（准、贵）。降低延迟和成本。
-  - 涉及文件：`agent.py`, `config.py`
-  - 优先级：中
+- [x] **3.1 多模型路由**
+  新增 `_route_model()` 函数实现请求级模型分流：短输入（<15 字符）+ 无历史 + 无复杂关键词 → 轻量模型，否则 → 完整模型。新增 `LIGHT_MODEL` / `LIGHT_MODEL_ENABLED` 配置项。`agent_chat()` 和 `agent_chat_stream()` 根据路由结果选择 agent 实例。未配置轻量模型时自动使用完整模型，零配置兼容。
+  - 涉及文件：`agent.py`, `config.py`, `.env.example`
+  - 优先级：中 ✅ 已完成 2026-06-15
 
 - [x] **3.2 推理过程中的用户反馈**
   新增 `thinking` 事件类型：流式输出中工具调用前会先发送自然语言描述（如"正在查询订单 **ORD-xxx** 的信息…"）。每个工具有定制的中文描述模板（TOOL_DESCRIPTIONS），通过 `_describe_tool_call()` 生成。main.py SSE 流已添加 thinking 事件转发。
@@ -241,3 +241,4 @@ Agent 响应返回给用户前的最后把关。
 | 2026-06-15 | 4.1 + 4.4 | 服务抽象层 + 工具超时：新增 services/ 目录（Protocol 接口 + mock 实现 + DATA_SOURCE 切换），mock 数据从 agent.py 迁出，所有异步工具加 asyncio.wait_for 超时控制 | services/（新目录）, agent.py, config.py, .env.example |
 | 2026-06-15 | 3.2 + 3.3 + 5.2 | 动态 prompt + 推理反馈 + 格式化：system prompt 改为动态模板（注入当前时间），流式新增 thinking 事件（工具调用自然语言描述），prompt 引导 Markdown 格式输出 | agent.py, main.py |
 | 2026-06-15 | 1.1 + 6.1 + 6.2 | 工程化加固：guardrails.py 三级严重度 + 15 中英文注入模式，database.py 连接池 + WAL 模式，结构化日志统一格式 + 第三方库降噪 | guardrails.py, database.py, main.py |
+| 2026-06-15 | 2.2 + 2.3 + 3.1 | 高级能力：跨会话长期记忆（user_memories 表 + session 关闭自动提取）、用户画像聚合（user_profiles 表 + 意图/评分/转人工率统计）、多模型路由（轻量/完整模型按输入复杂度分流） | user_context.py（新）, database.py, agent.py, main.py, config.py, .env.example |

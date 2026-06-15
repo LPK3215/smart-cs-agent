@@ -54,6 +54,7 @@ from app.guardrails import validate_input, check_content_safety, sanitize_output
 from app.memory import summarize_history
 from app.knowledge_base import FAQ_DATA
 from app.vector_store import init_vector_store
+from app.user_context import get_user_context, extract_memories_from_session, update_user_profile
 
 
 @asynccontextmanager
@@ -133,9 +134,23 @@ async def update_session(session_id: str, updates: SessionUpdate):
 
 @app.post("/api/sessions/{session_id}/close")
 async def close_session(session_id: str):
-    session = await update_session_db(session_id, status="closed")
+    # Get session first to extract user_id
+    session = await get_session_db(session_id)
     if not session:
         raise HTTPException(404, "Session not found")
+
+    # Close the session
+    session = await update_session_db(session_id, status="closed")
+
+    # Extract memories and update profile for cross-session context
+    user_id = session.get("user_id", "")
+    if user_id:
+        try:
+            await extract_memories_from_session(session_id, user_id)
+            await update_user_profile(user_id)
+        except Exception as e:
+            logger.warning(f"Failed to extract memories for session {session_id}: {e}")
+
     return session
 
 
@@ -193,8 +208,12 @@ async def chat(req: ChatRequest):
         title = req.message[:20] + ("..." if len(req.message) > 20 else "")
         await update_session_db(req.sessionId, title=title)
 
+    # Get user context (cross-session memory + profile)
+    user_id = session.get("user_id", "")
+    user_ctx = await get_user_context(user_id) if user_id else ""
+
     # Run Agent
-    response = await agent_chat(req.message, req.sessionId, history, session_summary)
+    response = await agent_chat(req.message, req.sessionId, history, session_summary, user_context=user_ctx)
 
     # Add bot message
     bot_msg = _make_bot_msg(
@@ -274,12 +293,16 @@ async def chat_stream(req: ChatRequest):
         title = req.message[:20] + ("..." if len(req.message) > 20 else "")
         await update_session_db(req.sessionId, title=title)
 
+    # Get user context (cross-session memory + profile)
+    user_id = session.get("user_id", "")
+    user_ctx = await get_user_context(user_id) if user_id else ""
+
     async def event_stream():
         full_content = ""
         metadata = {}
         tool_traces = []
 
-        async for event in agent_chat_stream(req.message, req.sessionId, history, session_summary):
+        async for event in agent_chat_stream(req.message, req.sessionId, history, session_summary, user_context=user_ctx):
             if event["type"] == "token":
                 full_content += event["content"]
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
