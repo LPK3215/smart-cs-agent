@@ -25,6 +25,7 @@ data/
 .idea/
 *.swp
 *.swo
+.codebuddy/
 
 # OS
 .DS_Store

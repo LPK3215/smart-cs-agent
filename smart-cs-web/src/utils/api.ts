@@ -7,6 +7,21 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+/** 已处理 401 重定向的信号错误，调用方应静默忽略 */
+export class AuthRedirectError extends Error {
+  constructor() {
+    super('AUTH_REDIRECT')
+    this.name = 'AuthRedirectError'
+  }
+}
+
+function handle401Redirect() {
+  localStorage.removeItem('auth_token')
+  localStorage.removeItem('auth_user')
+  const isAdminPath = window.location.pathname.startsWith('/admin')
+  window.location.href = isAdminPath ? '/admin/login' : '/login'
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}${path}`
   const headers: Record<string, string> = {
@@ -18,10 +33,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(url, { ...options, headers })
 
   if (res.status === 401) {
-    localStorage.removeItem('auth_token')
-    localStorage.removeItem('auth_user')
-    window.location.href = '/login'
-    throw new Error('未授权，请重新登录')
+    handle401Redirect()
+    throw new AuthRedirectError()
   }
 
   if (!res.ok) {
@@ -92,10 +105,8 @@ export function streamChatMessage(sessionId: string, message: string): Promise<R
     body: JSON.stringify({ sessionId, message }),
   }).then(res => {
     if (res.status === 401) {
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('auth_user')
-      window.location.href = '/login'
-      throw new Error('未授权，请重新登录')
+      handle401Redirect()
+      throw new AuthRedirectError()
     }
     return res
   })

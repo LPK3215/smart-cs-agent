@@ -6,16 +6,13 @@
     <!-- Sidebar -->
     <div class="sidebar" :class="{ 'sidebar-open': sidebarOpen }">
       <div class="sidebar-header">
-        <h2>🤖 智能客服</h2>
-        <p>ReAct Agent + SSE 流式</p>
+        <h2>管理后台</h2>
+        <p>数据仪表盘 & 运营分析</p>
       </div>
 
       <div class="sidebar-nav">
-        <router-link to="/chat" class="nav-item" :class="{ active: route.path === '/chat' }" @click="closeOnMobile">
-          <span class="icon">💬</span><span>对话</span>
-        </router-link>
-        <router-link to="/profile" class="nav-item" :class="{ active: route.path === '/profile' }" @click="closeOnMobile">
-          <span class="icon">👤</span><span>个人中心</span>
+        <router-link to="/admin" class="nav-item" :class="{ active: route.path === '/admin' }" @click="closeOnMobile">
+          <span class="icon">📊</span><span>数据概览</span>
         </router-link>
       </div>
 
@@ -23,19 +20,18 @@
         <div class="user-avatar">{{ authStore.user.displayName?.[0] || authStore.user.username[0] }}</div>
         <div class="user-info">
           <div class="user-name">{{ authStore.user.displayName || authStore.user.username }}</div>
-          <div class="user-role">{{ authStore.isAdmin ? '管理员' : '用户' }}</div>
+          <div class="user-role">管理员</div>
         </div>
         <button class="logout-btn" @click="handleLogout" title="退出登录">⏻</button>
       </div>
 
       <div class="sidebar-footer">
-        LangChain ReAct Agent<br>DeepSeek + SSE Streaming
+        Smart CS Agent<br>Admin Dashboard
       </div>
     </div>
 
     <!-- Main Content -->
     <div class="main-area">
-      <!-- Mobile hamburger -->
       <button class="mobile-menu-btn" @click="sidebarOpen = !sidebarOpen">
         <span class="hamburger" :class="{ open: sidebarOpen }"></span>
       </button>
@@ -56,7 +52,7 @@ const sidebarOpen = ref(false)
 
 function handleLogout() {
   authStore.logout()
-  router.push('/login')
+  router.push('/admin/login')
 }
 
 function closeOnMobile() {
@@ -104,7 +100,6 @@ function closeOnMobile() {
 }
 .logout-btn:hover { background: var(--border-light); color: var(--danger); }
 
-/* Mobile menu button - hidden on desktop */
 .mobile-menu-btn {
   display: none;
   position: absolute;
@@ -141,7 +136,6 @@ function closeOnMobile() {
 }
 .hamburger::before { top: -6px; }
 .hamburger::after { top: 6px; }
-
 .hamburger.open { background: transparent; }
 .hamburger.open::before { transform: rotate(45deg); top: 0; }
 .hamburger.open::after { transform: rotate(-45deg); top: 0; }
@@ -157,7 +151,6 @@ function closeOnMobile() {
 @media (max-width: 768px) {
   .mobile-menu-btn { display: flex; }
   .mobile-overlay { display: block; }
-
   .sidebar {
     position: fixed;
     left: -280px;

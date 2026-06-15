@@ -385,8 +385,13 @@ def _extract_metadata(messages: list) -> dict:
     for msg in messages:
         if hasattr(msg, 'tool_calls') and msg.tool_calls:
             for tc in msg.tool_calls:
-                tool_name = tc.get("name", "")
-                tool_args = tc.get("args", {})
+                # 兼容 dict 和 ToolCall 对象两种格式
+                if isinstance(tc, dict):
+                    tool_name = tc.get("name", "")
+                    tool_args = tc.get("args", {})
+                else:
+                    tool_name = getattr(tc, "name", "")
+                    tool_args = getattr(tc, "args", {})
                 tools_called.append(tool_name)
                 trace.append({
                     "type": "tool_call",

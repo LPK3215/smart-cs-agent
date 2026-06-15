@@ -111,6 +111,11 @@ export const useChatStore = defineStore('chat', () => {
       sessions.value = await api.fetchSessions()
       await loadMessages(sessionId)
     } catch (streamErr) {
+      // 401 重定向已由 api 层处理，静默退出
+      if (streamErr instanceof api.AuthRedirectError) {
+        return
+      }
+
       // Fallback to non-streaming
       console.warn('SSE failed, falling back:', streamErr)
       ElMessage.warning('流式连接中断，正在重试...')

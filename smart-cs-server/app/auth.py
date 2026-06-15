@@ -6,24 +6,22 @@ from typing import Optional
 
 from fastapi import Request, HTTPException, Depends
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 
 from app.config import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRE_HOURS
 from app.database import get_user_by_id_db
 
 logger = logging.getLogger(__name__)
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 def hash_password(password: str) -> str:
     """Hash a plaintext password."""
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 
 def create_access_token(user_id: str, role: str) -> str:

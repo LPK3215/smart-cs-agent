@@ -1,0 +1,672 @@
+<!-- ============================================================
+     Smart CS Agent — Project Overview Content
+     Loaded into the main entry page via fetch or iframe
+     ============================================================ -->
+
+<!-- Background orbs -->
+<div class="bg-orb bg-orb-1"></div>
+<div class="bg-orb bg-orb-2"></div>
+<div class="bg-orb bg-orb-3"></div>
+<div class="grid-bg"></div>
+
+<!-- ===== HERO ===== -->
+<header class="hero" data-section="overview">
+  <div class="container">
+    <div class="hero-badge">
+      <span class="dot"></span>
+      Version 2.0.1 — Production Ready
+    </div>
+    <h1 class="hero-title">
+      Smart <span class="gradient-text">CS Agent</span>
+    </h1>
+    <p class="hero-subtitle">
+      基于 LangChain ReAct Agent 的智能客服系统。LLM 自主决策调用工具，支持 RAG 语义检索、SSE 流式推送、跨会话记忆、三级安全护栏与全链路审计。前后端分离架构，用户端与管理端独立运行。
+    </p>
+    <div class="hero-actions">
+      <a href="https://github.com/LPK3215/smart-cs-agent" class="btn btn-primary" target="_blank">
+        View on GitHub
+      </a>
+      <a href="#architecture" class="btn btn-secondary">
+        System Architecture
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- ===== STATS ===== -->
+<div class="container">
+  <div class="stats-row">
+    <div class="stat-card fade-up">
+      <div class="stat-value" data-count="15">0</div>
+      <div class="stat-label">API Endpoints</div>
+    </div>
+    <div class="stat-card fade-up">
+      <div class="stat-value" data-count="8">0</div>
+      <div class="stat-label">Database Tables</div>
+    </div>
+    <div class="stat-card fade-up">
+      <div class="stat-value" data-count="5">0</div>
+      <div class="stat-label">Agent Tools</div>
+    </div>
+    <div class="stat-card fade-up">
+      <div class="stat-value" data-count="24">0</div>
+      <div class="stat-label">Vue Components</div>
+    </div>
+    <div class="stat-card fade-up">
+      <div class="stat-value" data-count="23">0</div>
+      <div class="stat-label">Safety Patterns</div>
+    </div>
+    <div class="stat-card fade-up">
+      <div class="stat-value" data-count="10">0</div>
+      <div class="stat-label">FAQ Entries</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== NAV TABS ===== -->
+<nav class="nav-tabs">
+  <div class="container">
+    <div class="nav-tabs-inner">
+      <button class="nav-tab active" data-target="overview">Overview</button>
+      <button class="nav-tab" data-target="architecture">Architecture</button>
+      <button class="nav-tab" data-target="tech-stack">Tech Stack</button>
+      <button class="nav-tab" data-target="features">Features</button>
+      <button class="nav-tab" data-target="api">API &amp; Tools</button>
+      <button class="nav-tab" data-target="roadmap">Roadmap</button>
+      <button class="nav-tab" data-target="changelog">Changelog</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ===== OVERVIEW SECTION ===== -->
+<section class="section" data-section="overview">
+  <div class="container">
+    <div class="section-header fade-up">
+      <h2 class="section-title">Project Overview</h2>
+      <p class="section-desc">Smart CS Agent is a full-stack intelligent customer service platform built with modern web technologies and AI agent architecture.</p>
+    </div>
+
+    <div class="feature-grid">
+      <div class="feature-card fade-up">
+        <div class="feature-icon blue">AI</div>
+        <div class="feature-title">ReAct Agent Engine</div>
+        <div class="feature-desc">LLM autonomously decides which tools to invoke, in what order, and when to transfer to human agents. Powered by LangChain with DeepSeek LLM integration.</div>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="feature-icon cyan">RAG</div>
+        <div class="feature-title">Vector Semantic Search</div>
+        <div class="feature-desc">DashScope text-embedding-v3 + FAISS vector store for semantic FAQ retrieval. Cosine similarity threshold filtering with keyword fallback.</div>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="feature-icon purple">SSE</div>
+        <div class="feature-title">Streaming Response</div>
+        <div class="feature-desc">Real-time SSE streaming with token-level output, tool call progress feedback, and full reasoning trace visibility for end users.</div>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="feature-icon emerald">DB</div>
+        <div class="feature-title">Cross-Session Memory</div>
+        <div class="feature-desc">Long-term memory extraction on session close, user profile aggregation, and context injection for personalized multi-turn conversations.</div>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="feature-icon amber">Shield</div>
+        <div class="feature-title">Three-Tier Safety</div>
+        <div class="feature-desc">BLOCK/WARN/SAFE severity levels with 23 injection and content safety patterns covering both Chinese and English attack vectors.</div>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="feature-icon rose">Admin</div>
+        <div class="feature-title">Admin Dashboard</div>
+        <div class="feature-desc">Dedicated admin panel with analytics charts, tool audit logs, session management, intent distribution, and satisfaction tracking.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== ARCHITECTURE SECTION ===== -->
+<section class="section" data-section="architecture" id="architecture">
+  <div class="container">
+    <div class="section-header fade-up">
+      <h2 class="section-title">System Architecture</h2>
+      <p class="section-desc">Three-tier separation: User Portal, FastAPI Backend with Agent Engine, and Admin Dashboard.</p>
+    </div>
+
+    <div class="arch-container fade-up">
+      <!-- Inline SVG architecture diagram -->
+      <svg viewBox="0 0 1000 620" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="gBlue" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#2563eb"/></linearGradient>
+          <linearGradient id="gPurple" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#8b5cf6"/><stop offset="100%" stop-color="#7c3aed"/></linearGradient>
+          <linearGradient id="gCyan" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#06b6d4"/><stop offset="100%" stop-color="#0891b2"/></linearGradient>
+          <linearGradient id="gEmerald" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#10b981"/><stop offset="100%" stop-color="#059669"/></linearGradient>
+          <linearGradient id="gAmber" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#d97706"/></linearGradient>
+          <linearGradient id="gRose" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f43f5e"/><stop offset="100%" stop-color="#e11d48"/></linearGradient>
+          <filter id="shadow"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.3"/></filter>
+        </defs>
+
+        <!-- User Portal -->
+        <rect x="30" y="20" width="940" height="100" rx="12" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.25)" stroke-width="1.5"/>
+        <rect x="40" y="30" width="920" height="80" rx="10" fill="rgba(59,130,246,0.05)"/>
+        <text x="500" y="56" text-anchor="middle" fill="#3b82f6" font-size="18" font-weight="700">User Portal ( / )</text>
+        <text x="500" y="82" text-anchor="middle" fill="#94a3b8" font-size="13">Login / Register &rarr; Chat &rarr; Session History &rarr; Satisfaction Rating</text>
+        <text x="500" y="100" text-anchor="middle" fill="#64748b" font-size="11">Vue 3.5 + Element Plus + Pinia + TypeScript + Vite 8</text>
+
+        <!-- Arrow down -->
+        <line x1="500" y1="120" x2="500" y2="150" stroke="rgba(255,255,255,0.15)" stroke-width="2" stroke-dasharray="6,4"/>
+        <polygon points="495,148 505,148 500,158" fill="rgba(255,255,255,0.2)"/>
+
+        <!-- FastAPI Backend -->
+        <rect x="30" y="160" width="940" height="320" rx="12" fill="rgba(139,92,246,0.06)" stroke="rgba(139,92,246,0.2)" stroke-width="1.5"/>
+        <rect x="40" y="170" width="920" height="300" rx="10" fill="rgba(139,92,246,0.03)"/>
+        <text x="500" y="196" text-anchor="middle" fill="#8b5cf6" font-size="18" font-weight="700">FastAPI Backend ( :8000 )</text>
+
+        <!-- Core modules row -->
+        <rect x="60" y="212" width="175" height="52" rx="8" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>
+        <text x="148" y="234" text-anchor="middle" fill="#60a5fa" font-size="13" font-weight="600">Auth (JWT)</text>
+        <text x="148" y="252" text-anchor="middle" fill="#94a3b8" font-size="11">bcrypt + token</text>
+
+        <rect x="255" y="212" width="175" height="52" rx="8" fill="rgba(139,92,246,0.1)" stroke="rgba(139,92,246,0.3)" stroke-width="1"/>
+        <text x="342" y="234" text-anchor="middle" fill="#a78bfa" font-size="13" font-weight="600">ReAct Agent</text>
+        <text x="342" y="252" text-anchor="middle" fill="#94a3b8" font-size="11">LLM Decision Engine</text>
+
+        <rect x="450" y="212" width="175" height="52" rx="8" fill="rgba(245,158,11,0.1)" stroke="rgba(245,158,11,0.3)" stroke-width="1"/>
+        <text x="538" y="234" text-anchor="middle" fill="#fbbf24" font-size="13" font-weight="600">Guardrails</text>
+        <text x="538" y="252" text-anchor="middle" fill="#94a3b8" font-size="11">23 Safety Patterns</text>
+
+        <rect x="645" y="212" width="175" height="52" rx="8" fill="rgba(16,185,129,0.1)" stroke="rgba(16,185,129,0.3)" stroke-width="1"/>
+        <text x="732" y="234" text-anchor="middle" fill="#34d399" font-size="13" font-weight="600">Memory System</text>
+        <text x="732" y="252" text-anchor="middle" fill="#94a3b8" font-size="11">Window + Summarization</text>
+
+        <rect x="840" y="212" width="110" height="52" rx="8" fill="rgba(244,63,94,0.1)" stroke="rgba(244,63,94,0.3)" stroke-width="1"/>
+        <text x="895" y="238" text-anchor="middle" fill="#fb7185" font-size="13" font-weight="600">Rate Limit</text>
+
+        <!-- Arrow to tool layer -->
+        <line x1="342" y1="264" x2="342" y2="285" stroke="rgba(139,92,246,0.2)" stroke-width="1.5"/>
+        <polygon points="338,283 346,283 342,291" fill="rgba(139,92,246,0.2)"/>
+
+        <!-- Tool Layer -->
+        <rect x="60" y="292" width="890" height="70" rx="8" fill="rgba(6,182,212,0.06)" stroke="rgba(6,182,212,0.2)" stroke-width="1"/>
+        <text x="80" y="316" fill="#22d3ee" font-size="14" font-weight="600">Tool Layer (5 Tools)</text>
+        <text x="80" y="336" fill="#64748b" font-size="11">search_faq &middot; query_order &middot; check_refund &middot; troubleshoot &middot; transfer_to_human</text>
+
+        <rect x="160" y="344" width="200" height="18" rx="4" fill="rgba(6,182,212,0.08)"/>
+        <text x="260" y="357" text-anchor="middle" fill="#67e8f9" font-size="10">RAG: FAISS + DashScope Embedding</text>
+        <rect x="380" y="344" width="200" height="18" rx="4" fill="rgba(6,182,212,0.08)"/>
+        <text x="480" y="357" text-anchor="middle" fill="#67e8f9" font-size="10">Service Layer: mock &harr; real</text>
+
+        <!-- Database -->
+        <rect x="250" y="375" width="500" height="44" rx="8" fill="rgba(16,185,129,0.06)" stroke="rgba(16,185,129,0.2)" stroke-width="1"/>
+        <text x="500" y="397" text-anchor="middle" fill="#34d399" font-size="14" font-weight="600">SQLite (WAL mode, 8 tables)</text>
+        <text x="500" y="412" text-anchor="middle" fill="#64748b" font-size="10">sessions &middot; messages &middot; ratings &middot; tool_audit &middot; rate_limits &middot; user_memories &middot; user_profiles &middot; users</text>
+
+        <!-- Arrow down to admin -->
+        <line x1="500" y1="480" x2="500" y2="510" stroke="rgba(255,255,255,0.15)" stroke-width="2" stroke-dasharray="6,4"/>
+        <polygon points="495,508 505,508 500,518" fill="rgba(255,255,255,0.2)"/>
+
+        <!-- Admin Portal -->
+        <rect x="30" y="520" width="940" height="80" rx="12" fill="rgba(16,185,129,0.06)" stroke="rgba(16,185,129,0.2)" stroke-width="1.5"/>
+        <rect x="40" y="530" width="920" height="60" rx="10" fill="rgba(16,185,129,0.03)"/>
+        <text x="500" y="554" text-anchor="middle" fill="#10b981" font-size="18" font-weight="700">Admin Dashboard ( /admin )</text>
+        <text x="500" y="578" text-anchor="middle" fill="#94a3b8" font-size="13">Admin Login &rarr; Analytics Dashboard &rarr; Audit Logs &rarr; Session Management &rarr; Tool Statistics</text>
+      </svg>
+    </div>
+
+    <!-- Data Flow Description -->
+    <div class="feature-grid" style="margin-top: 24px;">
+      <div class="feature-card fade-up">
+        <div class="feature-icon blue">1</div>
+        <div class="feature-title">User Request</div>
+        <div class="feature-desc">User sends message via Vue 3 frontend with JWT token. Request passes through CORS middleware to FastAPI backend.</div>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="feature-icon amber">2</div>
+        <div class="feature-title">Safety Check</div>
+        <div class="feature-desc">Input passes three-tier guardrails: empty/length validation, injection pattern detection (BLOCK/WARN), and content safety filtering.</div>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="feature-icon purple">3</div>
+        <div class="feature-title">Agent Reasoning</div>
+        <div class="feature-desc">ReAct Agent autonomously decides which tools to invoke. Multi-model routing selects light or full LLM based on input complexity.</div>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="feature-icon cyan">4</div>
+        <div class="feature-title">Streaming Response</div>
+        <div class="feature-desc">SSE event stream delivers tokens, thinking feedback, tool call progress, and final metadata. Frontend renders Markdown with syntax highlighting.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TECH STACK SECTION ===== -->
+<section class="section" data-section="tech-stack">
+  <div class="container">
+    <div class="section-header fade-up">
+      <h2 class="section-title">Tech Stack</h2>
+      <p class="section-desc">Modern full-stack architecture with AI agent capabilities.</p>
+    </div>
+
+    <div class="tech-grid">
+      <div class="tech-category fade-up">
+        <div class="tech-category-header">
+          <span class="dot" style="background: var(--accent-blue);"></span>
+          Frontend
+        </div>
+        <div class="tech-item"><span class="tech-name">Vue</span><span class="tech-version">3.5.38</span></div>
+        <div class="tech-item"><span class="tech-name">Vite</span><span class="tech-version">8.0.16</span></div>
+        <div class="tech-item"><span class="tech-name">TypeScript</span><span class="tech-version">6.0.3</span></div>
+        <div class="tech-item"><span class="tech-name">Element Plus</span><span class="tech-version">2.14.2</span></div>
+        <div class="tech-item"><span class="tech-name">Pinia</span><span class="tech-version">3.0.4</span></div>
+        <div class="tech-item"><span class="tech-name">Vue Router</span><span class="tech-version">4.6.4</span></div>
+        <div class="tech-item"><span class="tech-name">markdown-it</span><span class="tech-version">14.2.0</span></div>
+        <div class="tech-item"><span class="tech-name">highlight.js</span><span class="tech-version">11.11.1</span></div>
+      </div>
+
+      <div class="tech-category fade-up">
+        <div class="tech-category-header">
+          <span class="dot" style="background: var(--accent-purple);"></span>
+          Backend
+        </div>
+        <div class="tech-item"><span class="tech-name">FastAPI</span><span class="tech-version">0.110+</span></div>
+        <div class="tech-item"><span class="tech-name">Uvicorn</span><span class="tech-version">0.29+</span></div>
+        <div class="tech-item"><span class="tech-name">LangChain</span><span class="tech-version">0.3+</span></div>
+        <div class="tech-item"><span class="tech-name">langchain-openai</span><span class="tech-version">0.1+</span></div>
+        <div class="tech-item"><span class="tech-name">Pydantic</span><span class="tech-version">2.0+</span></div>
+        <div class="tech-item"><span class="tech-name">python-jose</span><span class="tech-version">3.3+</span></div>
+        <div class="tech-item"><span class="tech-name">bcrypt</span><span class="tech-version">4.0+</span></div>
+      </div>
+
+      <div class="tech-category fade-up">
+        <div class="tech-category-header">
+          <span class="dot" style="background: var(--accent-cyan);"></span>
+          AI &amp; Data
+        </div>
+        <div class="tech-item"><span class="tech-name">DeepSeek API</span><span class="tech-version">deepseek-chat</span></div>
+        <div class="tech-item"><span class="tech-name">DashScope Embedding</span><span class="tech-version">text-embedding-v3</span></div>
+        <div class="tech-item"><span class="tech-name">FAISS</span><span class="tech-version">1.7+</span></div>
+        <div class="tech-item"><span class="tech-name">NumPy</span><span class="tech-version">1.24+</span></div>
+        <div class="tech-item"><span class="tech-name">aiosqlite</span><span class="tech-version">0.20+</span></div>
+        <div class="tech-item"><span class="tech-name">SQLite (WAL)</span><span class="tech-version">3.x</span></div>
+      </div>
+    </div>
+
+    <!-- Project Structure -->
+    <div class="section-header fade-up" style="margin-top: 40px;">
+      <h2 class="section-title">Project Structure</h2>
+      <p class="section-desc">Monorepo with clear separation between frontend, backend, and documentation.</p>
+    </div>
+
+    <div class="code-block fade-up">
+      <div class="code-block-header">
+        <span class="code-lang">Directory Tree</span>
+        <button class="copy-btn btn-secondary" style="padding:4px 12px;font-size:12px;">Copy</button>
+      </div>
+      <pre class="dir-tree"><span class="comment">smart-cs-agent/</span>
+├── <span class="dir">smart-cs-web/</span>               <span class="comment">Frontend — Vue 3.5 + Vite 8 + Element Plus</span>
+│   ├── <span class="dir">src/</span>
+│   │   ├── <span class="dir">views/</span>              <span class="comment">5 page components</span>
+│   │   ├── <span class="dir">components/</span>
+│   │   │   ├── <span class="dir">layout/</span>         <span class="comment">AppLayout + AdminLayout</span>
+│   │   │   ├── <span class="dir">chat/</span>           <span class="comment">9 chat components</span>
+│   │   │   └── <span class="dir">admin/</span>          <span class="comment">7 admin components</span>
+│   │   ├── <span class="dir">composables/</span>       <span class="comment">Vue composables</span>
+│   │   ├── <span class="dir">stores/</span>           <span class="comment">Pinia: auth, chat, admin</span>
+│   │   ├── <span class="dir">utils/</span>            <span class="comment">API client, SSE, Markdown</span>
+│   │   ├── <span class="dir">router/</span>           <span class="comment">Dual routing (user + admin)</span>
+│   │   └── <span class="dir">types/</span>            <span class="comment">TypeScript definitions</span>
+│   └── <span class="file">vite.config.ts</span>         <span class="comment">Proxy /api → localhost:8000</span>
+├── <span class="dir">smart-cs-server/</span>            <span class="comment">Backend — FastAPI + LangChain + SQLite</span>
+│   ├── <span class="dir">app/</span>
+│   │   ├── <span class="file">main.py</span>             <span class="comment">15 API endpoints + lifespan</span>
+│   │   ├── <span class="file">agent.py</span>            <span class="comment">ReAct Agent + 5 tools + streaming</span>
+│   │   ├── <span class="file">vector_store.py</span>     <span class="comment">FAISS + DashScope embedding</span>
+│   │   ├── <span class="file">knowledge_base.py</span>   <span class="comment">10 FAQ entries</span>
+│   │   ├── <span class="file">memory.py</span>           <span class="comment">Sliding window + LLM summary</span>
+│   │   ├── <span class="file">user_context.py</span>     <span class="comment">Cross-session memory + profiles</span>
+│   │   ├── <span class="file">guardrails.py</span>       <span class="comment">23 safety patterns (3-tier)</span>
+│   │   ├── <span class="file">database.py</span>         <span class="comment">aiosqlite + WAL, 8 tables</span>
+│   │   ├── <span class="file">auth.py</span>             <span class="comment">JWT + bcrypt</span>
+│   │   ├── <span class="file">config.py</span>           <span class="comment">25+ config items</span>
+│   │   ├── <span class="file">models.py</span>           <span class="comment">Pydantic models</span>
+│   │   ├── <span class="file">admin_cli.py</span>        <span class="comment">Admin user CLI</span>
+│   │   └── <span class="dir">services/</span>           <span class="comment">Protocol + mock/real switch</span>
+│   └── <span class="file">run.py</span>                  <span class="comment">uvicorn startup</span>
+├── <span class="dir">docs/</span>                       <span class="comment">Documentation assets</span>
+│   └── <span class="file">architecture.svg</span>       <span class="comment">System architecture diagram</span>
+└── <span class="file">README.md</span>                   <span class="comment">Project documentation</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FEATURES SECTION ===== -->
+<section class="section" data-section="features">
+  <div class="container">
+    <div class="section-header fade-up">
+      <h2 class="section-title">Core Features</h2>
+      <p class="section-desc">Deep dive into the key capabilities that make Smart CS Agent production-ready.</p>
+    </div>
+
+    <!-- ReAct Agent -->
+    <div class="card fade-up" style="margin-bottom: 20px;">
+      <div class="card-header">
+        <span class="card-title" style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:20px;">&#9889;</span> ReAct Agent with Autonomous Tool Calling
+        </span>
+      </div>
+      <div class="card-body">
+        <p style="color:var(--text-secondary);font-size:14px;line-height:1.7;margin-bottom:16px;">
+          The LLM independently decides which tools to invoke, in what order, and whether to chain multiple tools. The system prompt provides 6 decision rules guiding tool selection, with a maximum of 10 ReAct iterations per request. Multi-model routing automatically selects a lightweight model for simple queries and a full model for complex ones.
+        </p>
+        <div class="tool-grid">
+          <div class="tool-card">
+            <div class="tool-card-name">search_faq</div>
+            <div class="tool-card-desc">Vector semantic search (RAG) with FAISS + DashScope embedding, keyword fallback. Returns similarity score for confidence calibration.</div>
+          </div>
+          <div class="tool-card">
+            <div class="tool-card-name">query_order</div>
+            <div class="tool-card-desc">Order status and logistics tracking via service abstraction layer. Timeout-protected with 30s limit.</div>
+          </div>
+          <div class="tool-card">
+            <div class="tool-card-name">check_refund</div>
+            <div class="tool-card-desc">Refund eligibility check and status query by refund ID or order ID. Returns ETA and processing details.</div>
+          </div>
+          <div class="tool-card">
+            <div class="tool-card-name">troubleshoot</div>
+            <div class="tool-card-desc">Technical issue diagnosis for crash, login, payment, and performance problems. Structured solution output.</div>
+          </div>
+          <div class="tool-card">
+            <div class="tool-card-name">transfer_to_human</div>
+            <div class="tool-card-desc">Seamless handoff to human agents with reason tracking. Auto-triggered for safety violations.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Safety & Security -->
+    <div class="card fade-up" style="margin-bottom: 20px;">
+      <div class="card-header">
+        <span class="card-title" style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:20px;">&#128737;</span> Three-Tier Safety &amp; Guardrails
+        </span>
+      </div>
+      <div class="card-body">
+        <p style="color:var(--text-secondary);font-size:14px;line-height:1.7;margin-bottom:16px;">
+          The guardrails system operates at three severity levels and covers 23 distinct safety patterns. BLOCK-level violations immediately reject the request. WARN-level patterns are logged but allowed through for monitoring. SAFE indicates no issues detected.
+        </p>
+        <div class="tech-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+          <div class="tech-category">
+            <div class="tech-category-header"><span class="dot" style="background:var(--accent-rose);"></span>Injection BLOCK (11)</div>
+            <div style="padding:12px 16px;font-size:12px;color:var(--text-muted);line-height:1.8;">
+              English: ignore instructions, role hijack, disregard rules, reveal prompt, ask instructions<br>
+              Chinese: 忽略指令, 角色扮演, 泄露提示词, 无视规则<br>
+              Special: ChatML tokens, encoding tricks
+            </div>
+          </div>
+          <div class="tech-category">
+            <div class="tech-category-header"><span class="dot" style="background:var(--accent-amber);"></span>Injection WARN (4)</div>
+            <div style="padding:12px 16px;font-size:12px;color:var(--text-muted);line-height:1.8;">
+              English: jailbreak ref, repeat prompt<br>
+              Chinese: 越狱模式, 复述提示词
+            </div>
+          </div>
+          <div class="tech-category">
+            <div class="tech-category-header"><span class="dot" style="background:var(--accent-rose);"></span>Content BLOCK (4)</div>
+            <div style="padding:12px 16px;font-size:12px;color:var(--text-muted);line-height:1.8;">
+              English: bomb making, CSAM<br>
+              Chinese: 制造炸弹, 儿童色情
+            </div>
+          </div>
+          <div class="tech-category">
+            <div class="tech-category-header"><span class="dot" style="background:var(--accent-amber);"></span>Content WARN (4)</div>
+            <div style="padding:12px 16px;font-size:12px;color:var(--text-muted);line-height:1.8;">
+              English: self-harm, cybercrime<br>
+              Chinese: 自杀方法, 黑客攻击
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Memory & Context -->
+    <div class="feature-grid" style="margin-top: 20px;">
+      <div class="feature-card fade-up">
+        <div class="feature-icon cyan">&#9203;</div>
+        <div class="feature-title">Sliding Window Memory</div>
+        <div class="feature-desc">Recent 8 messages kept in full context. When history exceeds 16 messages, LLM automatically generates a summary stored in the session record for efficient context compression.</div>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="feature-icon purple">&#128190;</div>
+        <div class="feature-title">Cross-Session Memory</div>
+        <div class="feature-desc">On session close, key memories are automatically extracted: issue types, transfer signals, and session summaries. Stored in user_memories table for injection into future sessions.</div>
+      </div>
+      <div class="feature-card fade-up">
+        <div class="feature-icon emerald">&#128200;</div>
+        <div class="feature-title">User Profiles</div>
+        <div class="feature-desc">Aggregated user statistics: total sessions, message count, intent distribution, average rating, and transfer rate. Profile data enriches system prompt for personalized responses.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== API & TOOLS SECTION ===== -->
+<section class="section" data-section="api">
+  <div class="container">
+    <div class="section-header fade-up">
+      <h2 class="section-title">API Endpoints &amp; Tools</h2>
+      <p class="section-desc">15 RESTful endpoints with SSE streaming support.</p>
+    </div>
+
+    <div class="card fade-up" style="margin-bottom: 20px;">
+      <div class="card-header"><span class="card-title">REST API Endpoints</span></div>
+      <div class="card-body no-padding">
+        <div class="endpoint-list">
+          <div class="endpoint-item"><span class="endpoint-method method-get">GET</span><span class="endpoint-path">/api/health</span><span class="endpoint-desc">Health check with API key status</span></div>
+          <div class="endpoint-item"><span class="endpoint-method method-post">POST</span><span class="endpoint-path">/api/auth/register</span><span class="endpoint-desc">User registration with JWT</span></div>
+          <div class="endpoint-item"><span class="endpoint-method method-post">POST</span><span class="endpoint-path">/api/auth/login</span><span class="endpoint-desc">User login, returns access token</span></div>
+          <div class="endpoint-item"><span class="endpoint-method method-get">GET</span><span class="endpoint-path">/api/auth/me</span><span class="endpoint-desc">Current user info + profile + memories</span></div>
+          <div class="endpoint-item"><span class="endpoint-method method-post">POST</span><span class="endpoint-path">/api/sessions</span><span class="endpoint-desc">Create new chat session</span></div>
+          <div class="endpoint-item"><span class="endpoint-method method-get">GET</span><span class="endpoint-path">/api/sessions</span><span class="endpoint-desc">List sessions (admin: all, user: own)</span></div>
+          <div class="endpoint-item"><span class="endpoint-method method-get">GET</span><span class="endpoint-path">/api/sessions/:id</span><span class="endpoint-desc">Get session detail</span></div>
+          <div class="endpoint-item"><span class="endpoint-method method-patch">PATCH</span><span class="endpoint-path">/api/sessions/:id</span><span class="endpoint-desc">Update session title/status/summary</span></div>
+          <div class="endpoint-item"><span class="endpoint-method method-post">POST</span><span class="endpoint-path">/api/sessions/:id/close</span><span class="endpoint-desc">Close session, extract memories + update profile</span></div>
+          <div class="endpoint-item"><span class="endpoint-method method-post">POST</span><span class="endpoint-path">/api/chat</span><span class="endpoint-desc">Non-streaming chat with agent</span></div>
+          <div class="endpoint-item"><span class="endpoint-method method-post">POST</span><span class="endpoint-path">/api/chat/stream</span><span class="endpoint-desc">SSE streaming chat with real-time events</span></div>
+          <div class="endpoint-item"><span class="endpoint-method method-get">GET</span><span class="endpoint-path">/api/sessions/:id/messages</span><span class="endpoint-desc">Get session message history</span></div>
+          <div class="endpoint-item"><span class="endpoint-method method-post">POST</span><span class="endpoint-path">/api/ratings</span><span class="endpoint-desc">Submit satisfaction rating (1-5)</span></div>
+          <div class="endpoint-item"><span class="endpoint-method method-get">GET</span><span class="endpoint-path">/api/ratings</span><span class="endpoint-desc">List ratings (optional session filter)</span></div>
+          <div class="endpoint-item"><span class="endpoint-method method-get">GET</span><span class="endpoint-path">/api/tool-audit</span><span class="endpoint-desc">Tool call audit log (admin only)</span></div>
+          <div class="endpoint-item"><span class="endpoint-method method-get">GET</span><span class="endpoint-path">/api/analytics</span><span class="endpoint-desc">Dashboard analytics (admin only)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Database Schema -->
+    <div class="card fade-up">
+      <div class="card-header"><span class="card-title">Database Schema (SQLite, WAL mode)</span></div>
+      <div class="card-body">
+        <div class="tech-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+          <div class="tech-category">
+            <div class="tech-category-header"><span class="dot" style="background:var(--accent-blue);"></span>sessions</div>
+            <div style="padding:10px 16px;font-size:12px;color:var(--text-muted);font-family:var(--font-mono);line-height:1.7;">
+              id, title, user_id, status, summary, created_at, updated_at
+            </div>
+          </div>
+          <div class="tech-category">
+            <div class="tech-category-header"><span class="dot" style="background:var(--accent-purple);"></span>messages</div>
+            <div style="padding:10px 16px;font-size:12px;color:var(--text-muted);font-family:var(--font-mono);line-height:1.7;">
+              id, session_id, role, content, intent, source, confidence, tools_called, trace, timestamp
+            </div>
+          </div>
+          <div class="tech-category">
+            <div class="tech-category-header"><span class="dot" style="background:var(--accent-cyan);"></span>ratings</div>
+            <div style="padding:10px 16px;font-size:12px;color:var(--text-muted);font-family:var(--font-mono);line-height:1.7;">
+              id, session_id, msg_id, score, rated_at
+            </div>
+          </div>
+          <div class="tech-category">
+            <div class="tech-category-header"><span class="dot" style="background:var(--accent-amber);"></span>tool_audit</div>
+            <div style="padding:10px 16px;font-size:12px;color:var(--text-muted);font-family:var(--font-mono);line-height:1.7;">
+              id, session_id, msg_id, tool_name, tool_input, tool_output, duration_ms, success, error, timestamp
+            </div>
+          </div>
+          <div class="tech-category">
+            <div class="tech-category-header"><span class="dot" style="background:var(--accent-emerald);"></span>rate_limits</div>
+            <div style="padding:10px 16px;font-size:12px;color:var(--text-muted);font-family:var(--font-mono);line-height:1.7;">
+              session_id, count, window_start
+            </div>
+          </div>
+          <div class="tech-category">
+            <div class="tech-category-header"><span class="dot" style="background:var(--accent-rose);"></span>user_memories</div>
+            <div style="padding:10px 16px;font-size:12px;color:var(--text-muted);font-family:var(--font-mono);line-height:1.7;">
+              id, user_id, content, category, created_at
+            </div>
+          </div>
+          <div class="tech-category">
+            <div class="tech-category-header"><span class="dot" style="background:var(--accent-blue);"></span>user_profiles</div>
+            <div style="padding:10px 16px;font-size:12px;color:var(--text-muted);font-family:var(--font-mono);line-height:1.7;">
+              user_id, profile_data (JSON), created_at, updated_at
+            </div>
+          </div>
+          <div class="tech-category">
+            <div class="tech-category-header"><span class="dot" style="background:var(--accent-purple);"></span>users</div>
+            <div style="padding:10px 16px;font-size:12px;color:var(--text-muted);font-family:var(--font-mono);line-height:1.7;">
+              id, username (UNIQUE), password_hash, display_name, role, created_at, updated_at
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== ROADMAP SECTION ===== -->
+<section class="section" data-section="roadmap">
+  <div class="container">
+    <div class="section-header fade-up">
+      <h2 class="section-title">Upgrade Roadmap</h2>
+      <p class="section-desc">Six-layer architecture upgrade plan with current completion status.</p>
+    </div>
+
+    <div class="roadmap-grid">
+      <div class="roadmap-layer fade-up">
+        <div class="roadmap-layer-header">
+          <span class="roadmap-layer-title">1. Input Preprocessing</span>
+          <span class="roadmap-badge green">95%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill green" style="width:95%;"></div></div>
+        <ul class="roadmap-items" style="margin-top:12px;">
+          <li class="done">1.1 Enhanced prompt injection detection (23 patterns, 3-tier)</li>
+          <li class="pending">1.2 Expanded sensitive word library with tiered handling</li>
+          <li class="pending">1.3 IP-level rate limiting</li>
+        </ul>
+      </div>
+
+      <div class="roadmap-layer fade-up">
+        <div class="roadmap-layer-header">
+          <span class="roadmap-layer-title">2. Context &amp; Memory</span>
+          <span class="roadmap-badge green">95%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill green" style="width:95%;"></div></div>
+        <ul class="roadmap-items" style="margin-top:12px;">
+          <li class="done">2.1 Vector semantic retrieval (RAG) with FAISS + DashScope</li>
+          <li class="done">2.2 Cross-session long-term memory</li>
+          <li class="done">2.3 User profile aggregation layer</li>
+          <li class="pending">2.4 Structured key fact extraction in summaries</li>
+        </ul>
+      </div>
+
+      <div class="roadmap-layer fade-up">
+        <div class="roadmap-layer-header">
+          <span class="roadmap-layer-title">3. Agent Reasoning</span>
+          <span class="roadmap-badge green">98%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill green" style="width:98%;"></div></div>
+        <ul class="roadmap-items" style="margin-top:12px;">
+          <li class="done">3.1 Multi-model routing (light/full model)</li>
+          <li class="done">3.2 User feedback during reasoning (thinking events)</li>
+          <li class="done">3.3 Dynamic system prompt with current time injection</li>
+          <li class="pending">3.4 Secondary verification of tool call results</li>
+        </ul>
+      </div>
+
+      <div class="roadmap-layer fade-up">
+        <div class="roadmap-layer-header">
+          <span class="roadmap-layer-title">4. Tool Layer</span>
+          <span class="roadmap-badge yellow">90%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill yellow" style="width:90%;"></div></div>
+        <ul class="roadmap-items" style="margin-top:12px;">
+          <li class="done">4.1 Service abstraction layer (Protocol + mock/real switch)</li>
+          <li class="done">4.2 Knowledge base vectorization + RAG</li>
+          <li class="pending">4.3 New tools: create_ticket, send_notification, query_account, apply_coupon</li>
+          <li class="done">4.4 Tool call timeout and retry mechanism</li>
+        </ul>
+      </div>
+
+      <div class="roadmap-layer fade-up">
+        <div class="roadmap-layer-header">
+          <span class="roadmap-layer-title">5. Output Processing</span>
+          <span class="roadmap-badge yellow">90%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill yellow" style="width:90%;"></div></div>
+        <ul class="roadmap-items" style="margin-top:12px;">
+          <li class="pending">5.1 Real-time safety filtering for streaming output</li>
+          <li class="done">5.2 Response formatting enhancement (Markdown)</li>
+          <li class="pending">5.3 Confidence-driven response strategy</li>
+        </ul>
+      </div>
+
+      <div class="roadmap-layer fade-up">
+        <div class="roadmap-layer-header">
+          <span class="roadmap-layer-title">6. Persistence &amp; Observability</span>
+          <span class="roadmap-badge green">95%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill green" style="width:95%;"></div></div>
+        <ul class="roadmap-items" style="margin-top:12px;">
+          <li class="done">6.1 Database connection pool + WAL mode</li>
+          <li class="done">6.2 Structured logging system</li>
+          <li class="pending">6.3 Enhanced health check endpoint</li>
+          <li class="pending">6.4 Data archival strategy</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CHANGELOG SECTION ===== -->
+<section class="section" data-section="changelog">
+  <div class="container">
+    <div class="section-header fade-up">
+      <h2 class="section-title">Changelog</h2>
+      <p class="section-desc">Version history and notable changes.</p>
+    </div>
+
+    <div class="timeline fade-up">
+      <div class="timeline-item">
+        <div class="timeline-version">v2.0.1</div>
+        <div class="timeline-date">2026-06-15</div>
+        <div class="timeline-changes">Documentation refinements: corrected database table count (7 to 8), updated safety pattern count (15+ to 23), refined frontend directory tree, added version badge, generated SVG architecture diagram.</div>
+      </div>
+
+      <div class="timeline-item">
+        <div class="timeline-version">v2.0.0</div>
+        <div class="timeline-date">2026-06-15</div>
+        <div class="timeline-changes">Major upgrade: frontend-backend separation with independent admin dashboard. Added RAG vector search (DashScope + FAISS), cross-session memory, user profiles, multi-model routing, service abstraction layer, tool timeout/retry, three-tier guardrails, connection pool + WAL mode, structured logging, admin CLI tool, dynamic system prompt, Markdown response formatting, and thinking events in streaming.</div>
+      </div>
+
+      <div class="timeline-item">
+        <div class="timeline-version">v1.0.0</div>
+        <div class="timeline-date">Initial Release</div>
+        <div class="timeline-changes">Core system: LangChain ReAct Agent with DeepSeek LLM, 5 tools (FAQ search, order query, refund check, troubleshoot, transfer to human), SSE streaming, sliding window memory, basic guardrails, tool audit logging, SQLite persistence with 5 tables, Vue 3 + Vite frontend with satisfaction rating system.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+  <div class="container">
+    <p class="footer-text">
+      Smart CS Agent v2.0.1 &middot; MIT License &middot;
+      <a href="https://github.com/LPK3215/smart-cs-agent" target="_blank">GitHub</a> &middot;
+      Author: lpk
+    </p>
+  </div>
+</footer>

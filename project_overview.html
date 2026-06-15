@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart CS Agent — Project Overview</title>
+  <meta name="description" content="Smart CS Agent is an intelligent customer service platform built with LangChain ReAct Agent, RAG, SSE streaming, and cross-session memory.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="project_overview/styles.css">
+</head>
+<body>
+  <!-- All content is in project_overview/content.html, loaded via JS -->
+  <div id="app">Loading project overview...</div>
+
+  <script>
+    // Load the content HTML and inject into #app
+    fetch('project_overview/content.html')
+      .then(response => response.text())
+      .then(html => {
+        document.getElementById('app').innerHTML = html;
+        // Dispatch a custom event so the JS module can initialize after content is loaded
+        document.dispatchEvent(new CustomEvent('content-loaded'));
+      })
+      .catch(() => {
+        document.getElementById('app').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#94a3b8;font-family:Inter,sans-serif;">Failed to load project overview. Please open project_overview/content.html directly.</div>';
+      });
+  </script>
+
+  <script src="project_overview/app.js"></script>
+</body>
+</html>
