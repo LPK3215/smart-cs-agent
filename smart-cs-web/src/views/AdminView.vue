@@ -24,15 +24,20 @@
 
     <ConversationTable
       :rows="store.filteredRows"
+      :filter-intent="store.filterIntent"
+      :filter-status="store.filterStatus"
       @update:filter-intent="val => store.filterIntent = val"
       @update:filter-status="val => store.filterStatus = val"
       @refresh="store.loadAnalytics()"
+      @view-session="openSessionDetail"
     />
+
+    <SessionDetailModal v-model:visible="modalVisible" :session-id="modalSessionId" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAdminStore } from '@/stores/admin'
 import StatCards from '@/components/admin/StatCards.vue'
 import IntentChart from '@/components/admin/IntentChart.vue'
@@ -41,8 +46,16 @@ import RatingChart from '@/components/admin/RatingChart.vue'
 import ResolutionBars from '@/components/admin/ResolutionBars.vue'
 import ToolStatsTable from '@/components/admin/ToolStatsTable.vue'
 import ConversationTable from '@/components/admin/ConversationTable.vue'
+import SessionDetailModal from '@/components/chat/SessionDetailModal.vue'
 
 const store = useAdminStore()
+const modalVisible = ref(false)
+const modalSessionId = ref<string | null>(null)
+
+function openSessionDetail(sessionId: string) {
+  modalSessionId.value = sessionId
+  modalVisible.value = true
+}
 
 onMounted(() => {
   store.loadAnalytics()

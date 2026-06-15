@@ -56,9 +56,12 @@ defineEmits<{
   'rate': [msgId: string, score: number]
 }>()
 
+const escapeHtml = (str: string) =>
+  str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
 const renderedContent = computed(() => {
   if (props.message.role === 'user') {
-    return props.message.content.replace(/\n/g, '<br>')
+    return escapeHtml(props.message.content).replace(/\n/g, '<br>')
   }
   return renderMarkdown(props.message.content)
 })

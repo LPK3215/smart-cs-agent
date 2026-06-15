@@ -11,11 +11,11 @@ export const useAdminStore = defineStore('admin', () => {
     intentCounts: {},
     sourceCounts: {},
     statusCounts: {},
-    avgRating: '0',
+    avgRating: 0,
     ratingDist: {},
     ratingCount: 0,
     intentResolution: {},
-    transferRate: '0',
+    transferRate: 0,
     toolStats: {},
     sessions: [],
     allMsgs: {},
@@ -40,31 +40,6 @@ export const useAdminStore = defineStore('admin', () => {
     return Object.entries(counts)
       .map(([k, v]) => ({ label: intentLabel(k), count: v }))
       .sort((a, b) => b.count - a.count)
-  })
-
-  const sourceLegend = computed(() => {
-    const s = analytics.value.sourceCounts
-    const total = (s.ai || 0) + (s.faq || 0) + (s.human || 0) + (s.system || 0)
-    if (total === 0) return []
-    return [
-      { label: '🤖 Agent', count: s.ai || 0, pct: ((s.ai || 0) / total * 100).toFixed(0), color: '#409eff' },
-      { label: '📚 知识库', count: s.faq || 0, pct: ((s.faq || 0) / total * 100).toFixed(0), color: '#67c23a' },
-      { label: '🗄️ 系统查询', count: s.system || 0, pct: ((s.system || 0) / total * 100).toFixed(0), color: '#606266' },
-      { label: '👤 人工客服', count: s.human || 0, pct: ((s.human || 0) / total * 100).toFixed(0), color: '#e6a23c' },
-    ]
-  })
-
-  const donutSegments = computed(() => {
-    const legend = sourceLegend.value
-    const total = legend.reduce((s, l) => s + l.count, 0)
-    if (total === 0) return []
-    let offset = 25
-    return legend.map(l => {
-      const pct = (l.count / total) * 100
-      const seg = { dashArray: `${pct} ${100 - pct}`, offset, color: l.color }
-      offset -= pct
-      return seg
-    })
   })
 
   const resolutionData = computed(() => {
@@ -93,7 +68,7 @@ export const useAdminStore = defineStore('admin', () => {
 
   return {
     analytics, isLoading, filterIntent, filterStatus,
-    intentChartData, sourceLegend, donutSegments, resolutionData, tableRows, filteredRows,
+    intentChartData, resolutionData, tableRows, filteredRows,
     loadAnalytics,
   }
 })

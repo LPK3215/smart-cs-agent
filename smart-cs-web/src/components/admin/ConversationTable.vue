@@ -2,7 +2,7 @@
   <div class="chart-card" style="margin-bottom: 24px;">
     <h3>对话记录</h3>
     <div class="filter-bar">
-      <select v-model="filterIntent" @change="$emit('update:filterIntent', filterIntent)">
+      <select :value="filterIntent" @change="$emit('update:filterIntent', ($event.target as HTMLSelectElement).value)">
         <option value="">全部意图</option>
         <option value="refund">退款申请</option>
         <option value="order">订单查询</option>
@@ -11,7 +11,7 @@
         <option value="human">转人工</option>
         <option value="unknown">未识别</option>
       </select>
-      <select v-model="filterStatus" @change="$emit('update:filterStatus', filterStatus)">
+      <select :value="filterStatus" @change="$emit('update:filterStatus', ($event.target as HTMLSelectElement).value)">
         <option value="">全部状态</option>
         <option value="active">进行中</option>
         <option value="transferred">已转人工</option>
@@ -32,7 +32,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in rows" :key="row.session.id">
+          <tr v-for="row in rows" :key="row.session.id" @click="$emit('viewSession', row.session.id)" style="cursor:pointer;">
             <td>{{ row.session.title }}</td>
             <td style="font-size:12px;color:var(--text-muted);">{{ row.session.user_id }}</td>
             <td>
@@ -55,22 +55,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import type { Session, Message } from '@/types'
+import type { Session } from '@/types'
 import { formatTime, intentLabel, statusLabel } from '@/utils/format'
 
 defineProps<{
   rows: Array<{ session: Session; intents: string[]; msgCount: number }>
+  filterIntent: string
+  filterStatus: string
 }>()
 
 defineEmits<{
   'update:filterIntent': [val: string]
   'update:filterStatus': [val: string]
   'refresh': []
+  'viewSession': [sessionId: string]
 }>()
-
-const filterIntent = ref('')
-const filterStatus = ref('')
 </script>
 
 <style scoped>

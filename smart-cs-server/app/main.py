@@ -17,12 +17,11 @@ Endpoints:
 
 import uuid
 import json
-import time
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
@@ -162,17 +161,29 @@ async def get_me(user: dict = Depends(get_current_user)):
         "username": user["username"],
         "displayName": user["display_name"],
         "role": user["role"],
-        "createdAt": user.get("createdAt", ""),
+        "createdAt": user.get("created_at", ""),
         "profile": profile,
         "memories": memories,
     }
+
+
+# ===== Auth Helpers =====
+
+async def _check_session_access(session_id: str, user: dict) -> dict:
+    """Verify session exists and user has access (admin can access any, users only their own)."""
+    session = await get_session_db(session_id)
+    if not session:
+        raise HTTPException(404, "Session not found")
+    if user["role"] != "admin" and session.get("user_id") != user["id"]:
+        raise HTTPException(403, "无权访问此对话")
+    return session
 
 
 # ===== Sessions =====
 
 @app.post("/api/sessions")
 async def create_session(user: dict = Depends(get_current_user), req: SessionCreate = None):
-    session_id = f"sess_{int(datetime.utcnow().timestamp())}_{uuid.uuid4().hex[:6]}"
+    session_id = f"sess_{int(datetime.now(timezone.utc).timestamp())}_{uuid.uuid4().hex[:6]}"
     user_id = user["id"]
     session = await create_session_db(session_id, user_id)
     return session
@@ -187,15 +198,15 @@ async def list_sessions(user: dict = Depends(get_current_user)):
 
 
 @app.get("/api/sessions/{session_id}")
-async def get_session(session_id: str):
+async def get_session(session_id: str, user: dict = Depends(get_current_user)):
+    await _check_session_access(session_id, user)
     session = await get_session_db(session_id)
-    if not session:
-        raise HTTPException(404, "Session not found")
     return session
 
 
 @app.patch("/api/sessions/{session_id}")
-async def update_session(session_id: str, updates: SessionUpdate):
+async def update_session(session_id: str, updates: SessionUpdate, user: dict = Depends(get_current_user)):
+    await _check_session_access(session_id, user)
     update_data = {k: v for k, v in updates.model_dump().items() if v is not None}
     if not update_data:
         raise HTTPException(400, "No fields to update")
@@ -206,11 +217,12 @@ async def update_session(session_id: str, updates: SessionUpdate):
 
 
 @app.post("/api/sessions/{session_id}/close")
-async def close_session(session_id: str):
-    # Get session first to extract user_id
-    session = await get_session_db(session_id)
-    if not session:
-        raise HTTPException(404, "Session not found")
+async def close_session(session_id: str, user: dict = Depends(get_current_user)):
+    session = await _check_session_access(session_id, user)
+
+    # Skip if already closed to prevent duplicate memory extraction
+    if session.get("status") == "closed":
+        return session
 
     # Close the session
     session = await update_session_db(session_id, status="closed")
@@ -230,11 +242,9 @@ async def close_session(session_id: str):
 # ===== Chat (Non-streaming) =====
 
 @app.post("/api/chat")
-async def chat(req: ChatRequest):
-    # Validate session
-    session = await get_session_db(req.sessionId)
-    if not session:
-        raise HTTPException(404, "Session not found")
+async def chat(req: ChatRequest, user: dict = Depends(get_current_user)):
+    # Validate session ownership
+    session = await _check_session_access(req.sessionId, user)
 
     if session.get("status") == "transferred":
         raise HTTPException(400, "对话已转人工，AI 回复已暂停")
@@ -316,11 +326,9 @@ async def chat(req: ChatRequest):
 # ===== Chat (SSE Streaming) =====
 
 @app.post("/api/chat/stream")
-async def chat_stream(req: ChatRequest):
-    # Validate session
-    session = await get_session_db(req.sessionId)
-    if not session:
-        raise HTTPException(404, "Session not found")
+async def chat_stream(req: ChatRequest, user: dict = Depends(get_current_user)):
+    # Validate session ownership
+    session = await _check_session_access(req.sessionId, user)
 
     if session.get("status") == "transferred":
         raise HTTPException(400, "对话已转人工，AI 回复已暂停")
@@ -370,6 +378,9 @@ async def chat_stream(req: ChatRequest):
     user_id = session.get("user_id", "")
     user_ctx = await get_user_context(user_id) if user_id else ""
 
+    # Pre-generate bot message ID for audit tracking during streaming
+    bot_msg_id = f"msg_{uuid.uuid4().hex[:12]}"
+
     async def event_stream():
         full_content = ""
         metadata = {}
@@ -392,11 +403,11 @@ async def chat_stream(req: ChatRequest):
                     "type": "tool_result", "tool": event["tool"],
                     "output": event["output"], "duration_ms": event["duration_ms"],
                 })
-                # Log to audit
+                # Log to audit with pre-generated bot msg_id
                 await add_tool_audit(
                     session_id=req.sessionId, tool_name=event["tool"],
                     tool_input={}, tool_output=event["output"],
-                    duration_ms=event["duration_ms"], success=True,
+                    duration_ms=event["duration_ms"], success=True, msg_id=bot_msg_id,
                 )
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
@@ -419,6 +430,7 @@ async def chat_stream(req: ChatRequest):
             metadata.get("tools_called", []),
             tool_traces,
         )
+        bot_msg["id"] = bot_msg_id
         await add_message_db(bot_msg)
 
         # Auto-transfer if needed
@@ -435,14 +447,17 @@ async def chat_stream(req: ChatRequest):
 # ===== Messages =====
 
 @app.get("/api/sessions/{session_id}/messages")
-async def get_session_messages(session_id: str):
+async def get_session_messages(session_id: str, user: dict = Depends(get_current_user)):
+    await _check_session_access(session_id, user)
     return await get_messages_db(session_id)
 
 
 # ===== Ratings =====
 
 @app.post("/api/ratings")
-async def create_rating(req: RatingCreate):
+async def create_rating(req: RatingCreate, user: dict = Depends(get_current_user)):
+    # Verify session ownership before allowing rating
+    await _check_session_access(req.sessionId, user)
     if req.score < 1 or req.score > 5:
         raise HTTPException(400, "Score must be 1-5")
     return await add_rating_db(req.sessionId, req.msgId, req.score)
@@ -554,7 +569,7 @@ def _make_user_msg(session_id: str, content: str) -> dict:
         "sessionId": session_id,
         "role": "user",
         "content": content,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -571,5 +586,5 @@ def _make_bot_msg(session_id: str, content: str, intent: str = None,
         "confidence": confidence,
         "toolsCalled": tools_called or [],
         "trace": trace or [],
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }

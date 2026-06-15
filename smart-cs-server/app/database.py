@@ -130,7 +130,7 @@ async def create_session_db(session_id: str, user_id: str) -> dict:
         (session_id, "新对话", user_id, "active", "", now, now)
     )
     await db.commit()
-    return {"id": session_id, "title": "新对话", "userId": user_id, "status": "active", "createdAt": now, "updatedAt": now}
+    return {"id": session_id, "title": "新对话", "user_id": user_id, "status": "active", "summary": "", "created_at": now, "updated_at": now}
 
 
 async def get_sessions_db(user_id: str = None) -> list:

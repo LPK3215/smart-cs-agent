@@ -74,6 +74,7 @@ async def get_current_user(request: Request) -> dict:
         "username": user["username"],
         "display_name": user["display_name"],
         "role": user["role"],
+        "created_at": user.get("created_at", ""),
     }
 
 
@@ -93,6 +94,7 @@ async def get_optional_user(request: Request) -> Optional[dict]:
             "username": user["username"],
             "display_name": user["display_name"],
             "role": user["role"],
+            "created_at": user.get("created_at", ""),
         }
     except HTTPException:
         return None

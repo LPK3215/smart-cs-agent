@@ -90,6 +90,14 @@ export function streamChatMessage(sessionId: string, message: string): Promise<R
       ...getAuthHeaders(),
     },
     body: JSON.stringify({ sessionId, message }),
+  }).then(res => {
+    if (res.status === 401) {
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('auth_user')
+      window.location.href = '/login'
+      throw new Error('未授权，请重新登录')
+    }
+    return res
   })
 }
 

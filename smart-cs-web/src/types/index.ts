@@ -149,11 +149,11 @@ export interface AnalyticsData {
   intentCounts: Record<string, number>
   sourceCounts: Record<string, number>
   statusCounts: Record<string, number>
-  avgRating: string
+  avgRating: number
   ratingDist: Record<string, number>
   ratingCount: number
   intentResolution: Record<string, { total: number; resolved: number }>
-  transferRate: string
+  transferRate: number
   toolStats: Record<string, { count: number; total_ms: number; errors: number }>
   sessions: Session[]
   allMsgs: Record<string, Message[]>

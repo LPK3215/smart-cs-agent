@@ -13,7 +13,7 @@
       <div class="value" style="color: #e6a23c;">
         {{ avgRating || '-' }} <span style="font-size:14px;">⭐</span>
       </div>
-      <div class="change" :class="parseFloat(avgRating) >= 4 ? 'up' : 'down'">
+      <div class="change" :class="avgRating >= 4 ? 'up' : 'down'">
         {{ ratingCount }} 次评价
       </div>
     </div>
@@ -28,8 +28,8 @@
 defineProps<{
   totalSessions: number
   totalMessages: number
-  avgRating: string
+  avgRating: number
   ratingCount: number
-  transferRate: string
+  transferRate: number
 }>()
 </script>
