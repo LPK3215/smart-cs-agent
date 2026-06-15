@@ -18,6 +18,7 @@ Endpoints:
 import uuid
 import json
 import time
+import logging
 from datetime import datetime
 from contextlib import asynccontextmanager
 
@@ -25,10 +26,25 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
+# Configure structured logging for all modules
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)-7s | %(name)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+# Quiet noisy third-party loggers
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("openai").setLevel(logging.WARNING)
+logging.getLogger("langchain").setLevel(logging.WARNING)
+logging.getLogger("langchain_core").setLevel(logging.WARNING)
+
+logger = logging.getLogger(__name__)
+
 from app.config import CORS_ORIGINS, RATE_LIMIT_PER_MIN, SUMMARY_THRESHOLD
 from app.models import ChatRequest, SessionCreate, SessionUpdate, RatingCreate
 from app.database import (
-    init_db, create_session_db, get_sessions_db, get_session_db,
+    init_db, close_db, create_session_db, get_sessions_db, get_session_db,
     update_session_db, add_message_db, get_messages_db, get_all_messages_db,
     add_rating_db, get_ratings_db, add_tool_audit, get_tool_audit_db,
     check_rate_limit,
@@ -42,9 +58,14 @@ from app.vector_store import init_vector_store
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("Smart CS Agent API starting...")
     await init_db()
     await init_vector_store(FAQ_DATA)
+    logger.info("Startup complete — ready to serve requests")
     yield
+    logger.info("Shutting down...")
+    await close_db()
+    logger.info("Shutdown complete")
 
 app = FastAPI(
     title="智能客服 Agent API",

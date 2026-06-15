@@ -10,12 +10,12 @@
 
 | 层面 | 完成度 | 状态 |
 |------|--------|------|
-| ① 输入预处理层 | 90% | 🟡 可优化 |
+| ① 输入预处理层 | 95% | 🟢 接近完成 |
 | ② 上下文与记忆层 | 85% | 🟡 可优化 |
 | ③ Agent 推理层 | 95% | 🟢 接近完成 |
 | ④ 工具层 | 90% | 🟡 可优化 |
 | ⑤ 输出处理层 | 90% | 🟡 可优化 |
-| ⑥ 持久化与可观测层 | 90% | 🟡 可优化 |
+| ⑥ 持久化与可观测层 | 95% | 🟢 接近完成 |
 
 ---
 
@@ -30,10 +30,10 @@
 
 **待优化项：**
 
-- [ ] **1.1 增强 prompt 注入检测**
-  当前只用简单正则匹配了几个英文模式（`ignore previous instructions`、`you are now` 等）。需补充中文注入模式（如"忽略之前的指令"、"你现在是"），以及更隐蔽的间接注入手法。可考虑引入一个 LLM-based 的注入分类器作为二级防线。
+- [x] **1.1 增强 prompt 注入检测**
+  重写 guardrails.py 为三级严重度系统（BLOCK/WARN/SAFE）。注入检测新增 15+ 模式：英文（role hijack、reveal prompt、encoding tricks）、中文（忽略指令、角色扮演、泄露提示词）、特殊 token（ChatML 格式）。内容安全分 BLOCK（炸弹/CSAM）和 WARN（自残/网络犯罪）两级。WARN 级记录日志但不拦截。
   - 涉及文件：`guardrails.py`
-  - 优先级：中
+  - 优先级：中 ✅ 已完成 2026-06-15
 
 - [ ] **1.2 扩充敏感词库与分级处理**
   当前敏感词库较小（十几个中英文词），且处理方式一刀切（直接转人工）。应扩充词库并引入分级：警告级（记录但不拦截）、拦截级（拒绝响应并提示）、严重级（转人工 + 告警）。
@@ -194,15 +194,15 @@ Agent 响应返回给用户前的最后把关。
 
 **待优化项：**
 
-- [ ] **6.1 数据库连接池**
-  当前每个 DB 操作都 `connect → execute → close`，高并发下性能差。引入 aiosqlite 的连接池（或用 SQLAlchemy async session）复用连接。
-  - 涉及文件：`database.py`
-  - 优先级：中
+- [x] **6.1 数据库连接池**
+  重写 database.py：用模块级共享连接替代每次 connect/close。启用 WAL 模式提升并发读性能，设置 busy_timeout=5s。新增 `close_db()` 用于优雅关闭。所有函数移除了 try/finally/close 模式，代码量减少约 30%。
+  - 涉及文件：`database.py`, `main.py`（lifespan 关闭）
+  - 优先级：中 ✅ 已完成 2026-06-15
 
-- [ ] **6.2 结构化日志**
-  当前只有 print 级别的错误输出。引入结构化日志（如 structlog / loguru），统一格式，记录请求 ID、session ID、工具调用链等，方便排查问题。
-  - 涉及文件：全局
-  - 优先级：中
+- [x] **6.2 结构化日志**
+  在 main.py 启动时配置 `logging.basicConfig`，统一格式：`时间 | 级别 | 模块 | 消息`。对 httpx/openai/langchain 等第三方库设置 WARNING 级别降噪。database.py、vector_store.py、guardrails.py 均已接入 logger。
+  - 涉及文件：`main.py`, `database.py`, `guardrails.py`, `vector_store.py`
+  - 优先级：中 ✅ 已完成 2026-06-15
 
 - [ ] **6.3 健康检查增强**
   `/api/health` 当前只检查 API Key 是否配置。应增加：数据库连通性、LLM API 可达性、当前活跃 session 数、最近 5 分钟错误率等。
@@ -240,3 +240,4 @@ Agent 响应返回给用户前的最后把关。
 | 2026-06-15 | 2.1 + 4.2 | RAG 向量语义检索：新增 vector_store.py（DashScope text-embedding-v3 + FAISS），改造 search_faq 工具为语义检索优先 + 关键词回退，confidence 改为实际相似度分数 | vector_store.py（新）, agent.py, main.py, config.py, .env.example, requirements.txt |
 | 2026-06-15 | 4.1 + 4.4 | 服务抽象层 + 工具超时：新增 services/ 目录（Protocol 接口 + mock 实现 + DATA_SOURCE 切换），mock 数据从 agent.py 迁出，所有异步工具加 asyncio.wait_for 超时控制 | services/（新目录）, agent.py, config.py, .env.example |
 | 2026-06-15 | 3.2 + 3.3 + 5.2 | 动态 prompt + 推理反馈 + 格式化：system prompt 改为动态模板（注入当前时间），流式新增 thinking 事件（工具调用自然语言描述），prompt 引导 Markdown 格式输出 | agent.py, main.py |
+| 2026-06-15 | 1.1 + 6.1 + 6.2 | 工程化加固：guardrails.py 三级严重度 + 15 中英文注入模式，database.py 连接池 + WAL 模式，结构化日志统一格式 + 第三方库降噪 | guardrails.py, database.py, main.py |
