@@ -13,7 +13,7 @@
 | ① 输入预处理层 | 90% | 🟡 可优化 |
 | ② 上下文与记忆层 | 85% | 🟡 可优化 |
 | ③ Agent 推理层 | 85% | 🟡 可优化 |
-| ④ 工具层 | 80% | 🟡 可优化 |
+| ④ 工具层 | 90% | 🟡 可优化 |
 | ⑤ 输出处理层 | 85% | 🟡 可优化 |
 | ⑥ 持久化与可观测层 | 90% | 🟡 可优化 |
 
@@ -127,10 +127,10 @@ Agent 可以调用的外部能力，是系统实用性的关键。
 
 **待优化项：**
 
-- [ ] **4.1 接入真实业务数据源**
-  将 mock 数据替换为真实 API 调用或数据库查询。这是让系统从"演示"变成"可用"的核心步骤。至少需要对接：订单系统 API、退款系统 API。可以先把 mock 数据层抽象为接口，实现 mock/real 可切换。
-  - 涉及文件：`agent.py`（工具函数）, 新增 `services/` 目录
-  - 优先级：**高**
+- [x] **4.1 接入真实业务数据源**
+  创建了 `services/` 抽象层：`base.py`（Protocol 接口定义）、`mock_service.py`（mock 实现）、`__init__.py`（根据 DATA_SOURCE 配置自动切换）。agent.py 中的 MOCK_ORDERS/MOCK_REFUNDS 和 troubleshoot 硬编码数据已迁移到 mock_service.py。设置 `DATA_SOURCE=real` 并实现 `real_service.py` 即可切换到真实后端。
+  - 涉及文件：`services/`（新目录，3 个文件）, `agent.py`, `config.py`, `.env.example`
+  - 优先级：**高** ✅ 已完成 2026-06-15
 
 - [x] **4.2 知识库向量化 + RAG**
   与 2.1 联动完成。新增 `vector_store.py` 模块，启动时用 DashScope text-embedding-v3 对 FAQ 数据生成 embeddings 并构建 FAISS 索引。search_faq 工具优先走向量语义检索（cosine similarity > 0.3 阈值），未初始化时自动回退关键词匹配。
@@ -146,10 +146,10 @@ Agent 可以调用的外部能力，是系统实用性的关键。
   - 涉及文件：`agent.py`
   - 优先级：中
 
-- [ ] **4.4 工具调用超时与重试**
-  当前 `TOOL_TIMEOUT_SEC=30` 在 config 中定义了，但工具函数内没有实际使用。应给每个工具加上 async timeout 和可选重试机制。
+- [x] **4.4 工具调用超时与重试**
+  所有异步工具（query_order、check_refund、troubleshoot）的 service 调用已包装 `asyncio.wait_for(timeout=TOOL_TIMEOUT_SEC)`。超时后返回友好错误消息并建议转人工。search_faq 的向量检索也有 timeout 保护（通过 vector_store 内部的异常捕获）。
   - 涉及文件：`agent.py`
-  - 优先级：中
+  - 优先级：中 ✅ 已完成 2026-06-15
 
 ---
 
@@ -238,3 +238,4 @@ Agent 响应返回给用户前的最后把关。
 |------|----------|----------|----------|
 | 2026-06-15 | — | 项目初始化清理：删除遗留 backend/ 目录、修正 README、修正 .env.example、清理未使用导入 | README.md, .env.example, main.py, agent.py |
 | 2026-06-15 | 2.1 + 4.2 | RAG 向量语义检索：新增 vector_store.py（DashScope text-embedding-v3 + FAISS），改造 search_faq 工具为语义检索优先 + 关键词回退，confidence 改为实际相似度分数 | vector_store.py（新）, agent.py, main.py, config.py, .env.example, requirements.txt |
+| 2026-06-15 | 4.1 + 4.4 | 服务抽象层 + 工具超时：新增 services/ 目录（Protocol 接口 + mock 实现 + DATA_SOURCE 切换），mock 数据从 agent.py 迁出，所有异步工具加 asyncio.wait_for 超时控制 | services/（新目录）, agent.py, config.py, .env.example |

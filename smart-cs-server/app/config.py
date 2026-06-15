@@ -13,6 +13,9 @@ EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY", "")
 EMBEDDING_BASE_URL = os.getenv("EMBEDDING_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-v3")
 
+# Data source: "mock" (default, hardcoded data) or "real" (backend APIs)
+DATA_SOURCE = os.getenv("DATA_SOURCE", "mock")
+
 # Database
 DATABASE_PATH = os.getenv("DATABASE_PATH", os.path.join(os.path.dirname(__file__), "..", "data", "smart_cs.db"))
 

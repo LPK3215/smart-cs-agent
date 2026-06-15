@@ -14,6 +14,7 @@ Features:
 
 import json
 import time
+import asyncio
 from datetime import datetime
 from typing import AsyncGenerator
 
@@ -30,23 +31,14 @@ from app.knowledge_base import FAQ_DATA
 from app.guardrails import sanitize_output
 from app.memory import build_chat_history, summarize_history
 from app.vector_store import search_similar as vector_search, is_initialized as vector_store_ready
+from app.services import order_service, refund_service, troubleshoot_service
 
 
 # ============================================================
 # Tool Definitions — capabilities the Agent can invoke
 # ============================================================
 
-MOCK_ORDERS = {
-    "ORD20260610001": {"status": "已签收", "product": "蓝牙耳机 Pro", "amount": 299, "logistics": "顺丰 SF1234567890", "ordered_at": "2026-06-10"},
-    "ORD20260608002": {"status": "配送中", "product": "手机壳套装", "amount": 59, "logistics": "中通 ZT9876543210", "ordered_at": "2026-06-08"},
-    "ORD20260605003": {"status": "已发货", "product": "充电宝 20000mAh", "amount": 129, "logistics": "圆通 YT5678901234", "ordered_at": "2026-06-05"},
-    "ORD20260603004": {"status": "待发货", "product": "数据线三合一", "amount": 29, "logistics": "待分配", "ordered_at": "2026-06-03"},
-}
-
-MOCK_REFUNDS = {
-    "REF001": {"order_id": "ORD20260610001", "status": "审核中", "amount": 299, "reason": "商品质量问题", "created_at": "2026-06-12", "eta": "1-2个工作日审核"},
-    "REF002": {"order_id": "ORD20260605003", "status": "已通过", "amount": 129, "reason": "不想要了", "created_at": "2026-06-11", "eta": "3-5个工作日到账"},
-}
+# Mock data moved to services/mock_service.py — tools call through service layer
 
 
 @tool
@@ -98,7 +90,7 @@ async def search_faq(query: str) -> str:
 
 
 @tool
-def query_order(order_id: str = "") -> str:
+async def query_order(order_id: str = "") -> str:
     """Query order status and logistics information.
     Use this when the user wants to check their order status, track a package,
     or know delivery details.
@@ -112,8 +104,17 @@ def query_order(order_id: str = "") -> str:
             "message": "请提供订单号以查询订单状态。您可以在APP「我的订单」中找到订单号，格式如 ORD20260610001"
         }, ensure_ascii=False)
 
-    if order_id in MOCK_ORDERS:
-        order = MOCK_ORDERS[order_id]
+    try:
+        order = await asyncio.wait_for(
+            order_service.query_order(order_id),
+            timeout=TOOL_TIMEOUT_SEC,
+        )
+    except asyncio.TimeoutError:
+        return json.dumps({
+            "found": False,
+            "message": f"查询订单 {order_id} 超时（>{TOOL_TIMEOUT_SEC}s），请稍后重试或转人工客服。"
+        }, ensure_ascii=False)
+    if order:
         return json.dumps({
             "found": True, "order_id": order_id, "status": order["status"],
             "product": order["product"], "amount": order["amount"],
@@ -127,7 +128,7 @@ def query_order(order_id: str = "") -> str:
 
 
 @tool
-def check_refund(refund_id: str = "", order_id: str = "") -> str:
+async def check_refund(refund_id: str = "", order_id: str = "") -> str:
     """Check refund eligibility, status, and timeline.
     Use this when the user asks about refund progress, whether they can get a refund,
     or why a refund was rejected.
@@ -136,22 +137,37 @@ def check_refund(refund_id: str = "", order_id: str = "") -> str:
         refund_id: The refund ID to check (optional).
         order_id: The order ID to check refund for (optional).
     """
-    if refund_id and refund_id in MOCK_REFUNDS:
-        ref = MOCK_REFUNDS[refund_id]
-        return json.dumps({
-            "found": True, "refund_id": refund_id, "order_id": ref["order_id"],
-            "status": ref["status"], "amount": ref["amount"],
-            "reason": ref["reason"], "eta": ref["eta"],
-        }, ensure_ascii=False)
+    if refund_id:
+        try:
+            ref = await asyncio.wait_for(
+                refund_service.check_refund_by_id(refund_id),
+                timeout=TOOL_TIMEOUT_SEC,
+            )
+        except asyncio.TimeoutError:
+            return json.dumps({
+                "found": False,
+                "message": f"查询退款 {refund_id} 超时（>{TOOL_TIMEOUT_SEC}s），请稍后重试或转人工客服。"
+            }, ensure_ascii=False)
+        if ref:
+            return json.dumps({
+                "found": True, "refund_id": refund_id, "order_id": ref["order_id"],
+                "status": ref["status"], "amount": ref["amount"],
+                "reason": ref["reason"], "eta": ref["eta"],
+            }, ensure_ascii=False)
 
     if order_id:
-        if order_id in MOCK_ORDERS:
-            order = MOCK_ORDERS[order_id]
+        try:
+            result = await asyncio.wait_for(
+                refund_service.check_refund_by_order(order_id),
+                timeout=TOOL_TIMEOUT_SEC,
+            )
+        except asyncio.TimeoutError:
             return json.dumps({
-                "eligible": True,
-                "message": f"订单 {order_id}（{order['product']}）当前状态：{order['status']}，可申请退款。",
-                "amount": order["amount"]
+                "eligible": False,
+                "message": f"查询订单 {order_id} 退款信息超时（>{TOOL_TIMEOUT_SEC}s），请稍后重试或转人工客服。"
             }, ensure_ascii=False)
+        if result and result.get("eligible"):
+            return json.dumps(result, ensure_ascii=False)
         return json.dumps({
             "eligible": False,
             "message": f"未找到订单 {order_id}，请确认订单号。示例订单号：ORD20260610001"
@@ -164,7 +180,7 @@ def check_refund(refund_id: str = "", order_id: str = "") -> str:
 
 
 @tool
-def troubleshoot(issue_type: str, description: str = "") -> str:
+async def troubleshoot(issue_type: str, description: str = "") -> str:
     """Diagnose technical issues and provide solutions.
     Use this when the user reports app crashes, login problems, payment failures,
     or other technical difficulties.
@@ -173,60 +189,18 @@ def troubleshoot(issue_type: str, description: str = "") -> str:
         issue_type: Type of issue: crash, login, payment, slow, other.
         description: Detailed description of the problem.
     """
-    solutions = {
-        "crash": {
-            "steps": [
-                "1. 清理APP缓存：设置 → 应用管理 → 清除缓存",
-                "2. 更新到最新版本：应用商店检查更新",
-                "3. 卸载重装：长按APP图标 → 卸载 → 重新下载安装",
-                "4. 检查手机系统版本是否低于最低要求（Android 8.0 / iOS 13）",
-            ],
-            "tip": "如果重装后仍闪退，可能是手机兼容性问题，建议转人工技术支持。"
-        },
-        "login": {
-            "steps": [
-                "1. 忘记密码：登录页 →「忘记密码」→ 手机验证码重置",
-                "2. 收不到验证码：检查手机号是否正确 → 查看短信拦截 → 等待60秒后重试",
-                "3. 账号被锁定：连续输错5次密码会锁定30分钟，之后自动解锁",
-                "4. 第三方登录失败：检查微信/QQ是否正常授权",
-            ],
-            "tip": "如果以上方法均无效，可能是账号异常，需要人工客服解锁。"
-        },
-        "payment": {
-            "steps": [
-                "1. 检查网络连接是否正常",
-                "2. 更换支付方式（微信/支付宝/银行卡）",
-                "3. 检查银行卡余额和限额",
-                "4. 确认是否超过单笔支付限额",
-            ],
-            "tip": "如果支付扣款但订单未生成，请保留支付截图联系人工客服核实。"
-        },
-        "slow": {
-            "steps": [
-                "1. 切换到更稳定的网络（WiFi/4G）",
-                "2. 关闭VPN/代理软件",
-                "3. 清理APP缓存后重启",
-                "4. 检查手机存储空间是否不足",
-            ],
-            "tip": "如果是特定页面加载慢，可能是服务器维护中，请稍后重试。"
-        },
-    }
-
-    key = issue_type.lower().strip()
-    if key in solutions:
-        sol = solutions[key]
-        return json.dumps({"found": True, "issue_type": key, "steps": sol["steps"], "tip": sol["tip"]}, ensure_ascii=False)
-
-    return json.dumps({
-        "found": True, "issue_type": "other",
-        "steps": [
-            "1. 尝试清理缓存并重启APP",
-            "2. 更新到最新版本",
-            "3. 切换网络环境重试",
-            "4. 如果问题持续，请详细描述错误信息以便进一步诊断",
-        ],
-        "tip": "提供具体的错误提示或截图可以帮助更快定位问题。"
-    }, ensure_ascii=False)
+    try:
+        result = await asyncio.wait_for(
+            troubleshoot_service.diagnose(issue_type, description),
+            timeout=TOOL_TIMEOUT_SEC,
+        )
+    except asyncio.TimeoutError:
+        return json.dumps({
+            "found": False,
+            "issue_type": issue_type,
+            "message": f"故障诊断超时（>{TOOL_TIMEOUT_SEC}s），请稍后重试或转人工客服。",
+        }, ensure_ascii=False)
+    return json.dumps(result, ensure_ascii=False)
 
 
 @tool
