@@ -19,7 +19,7 @@ from datetime import datetime
 from typing import AsyncGenerator
 
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_core.tools import tool
 from langchain.agents import create_agent
 
@@ -224,10 +224,41 @@ ALL_TOOLS = [search_faq, query_order, check_refund, troubleshoot, transfer_to_hu
 
 
 # ============================================================
+# Tool call descriptions for streaming feedback
+# ============================================================
+
+TOOL_DESCRIPTIONS = {
+    "search_faq": lambda inp: f"正在搜索知识库：{inp.get('query', '')[:30]}…",
+    "query_order": lambda inp: f"正在查询订单 **{inp.get('order_id', '')}** 的信息…",
+    "check_refund": lambda inp: (
+        f"正在查询退款 **{inp.get('refund_id', '')}** 的状态…"
+        if inp.get("refund_id")
+        else f"正在查询订单 **{inp.get('order_id', '')}** 的退款信息…"
+    ),
+    "troubleshoot": lambda inp: f"正在诊断 **{inp.get('issue_type', '')}** 类型的技术问题…",
+    "transfer_to_human": lambda inp: "正在为您转接人工客服…",
+}
+
+
+def _describe_tool_call(tool_name: str, tool_input: dict) -> str:
+    """Generate a human-readable description of a tool call for UI feedback."""
+    desc_fn = TOOL_DESCRIPTIONS.get(tool_name)
+    if desc_fn:
+        try:
+            return desc_fn(tool_input)
+        except Exception:
+            pass
+    return f"正在执行 {tool_name}…"
+
+
+# ============================================================
 # Agent Construction — ReAct Agent with Tool Calling
 # ============================================================
 
-SYSTEM_PROMPT = """你是一个专业的智能客服Agent，名叫「小智」。你可以自主决策使用多种工具来帮助用户解决问题。
+SYSTEM_PROMPT_TEMPLATE = """你是一个专业的智能客服Agent，名叫「小智」。你可以自主决策使用多种工具来帮助用户解决问题。
+
+## 当前环境
+- 当前时间：{current_time}
 
 ## 你的能力
 你可以自主决定使用哪些工具来解决问题，也可以组合使用多个工具。不要猜测答案——先用工具获取信息，再回答用户。
@@ -247,12 +278,24 @@ SYSTEM_PROMPT = """你是一个专业的智能客服Agent，名叫「小智」�
 5. 用户问题复杂或你无法解决 → 主动调用 transfer_to_human 并说明原因
 6. 如果工具返回的信息不够，可以追问用户获取更多信息（如订单号）
 
-## 回答要求
+## 回答格式要求
 - 基于工具返回的数据回答，不要编造信息
 - 用简洁友好的中文回复
 - 如果需要用户补充信息（如订单号），明确告知
 - 在回答末尾标注信息来源格式：[知识库] / [系统查询] / [人工客服]
+- 使用 Markdown 格式让回答更清晰：
+  - 用 **粗体** 突出关键信息（如订单号、金额、状态）
+  - 查询订单信息时用表格展示：| 项目 | 详情 |
+  - 步骤说明用有序列表（1. 2. 3.）
+  - 多个选项用无序列表（- 项1 - 项2）
 """
+
+
+def build_system_prompt() -> str:
+    """Build a dynamic system prompt with current context."""
+    now = datetime.now()
+    current_time = now.strftime("%Y年%m月%d日 %H:%M:%S (%A)")
+    return SYSTEM_PROMPT_TEMPLATE.format(current_time=current_time)
 
 llm = ChatOpenAI(
     api_key=DEEPSEEK_API_KEY,
@@ -266,7 +309,7 @@ llm = ChatOpenAI(
 react_agent = create_agent(
     model=llm,
     tools=ALL_TOOLS,
-    system_prompt=SYSTEM_PROMPT,
+    # system_prompt is injected per-request via SystemMessage for dynamic context
 )
 
 
@@ -363,8 +406,9 @@ def _extract_metadata(messages: list) -> dict:
 async def agent_chat(user_input: str, session_id: str = None,
                      history: list[dict] = None, session_summary: str = "") -> dict:
     """Run the ReAct Agent and return full result."""
+    system_msg = SystemMessage(content=build_system_prompt())
     chat_history = build_chat_history(history or [], session_summary)
-    input_messages = chat_history + [HumanMessage(content=user_input)]
+    input_messages = [system_msg] + chat_history + [HumanMessage(content=user_input)]
 
     try:
         result = await react_agent.ainvoke(
@@ -446,7 +490,8 @@ async def agent_chat_stream(user_input: str, session_id: str = None,
     - {"type": "error", "content": "..."} — Error occurred
     """
     chat_history = build_chat_history(history or [], session_summary)
-    input_messages = chat_history + [HumanMessage(content=user_input)]
+    system_msg = SystemMessage(content=build_system_prompt())
+    input_messages = [system_msg] + chat_history + [HumanMessage(content=user_input)]
 
     tools_called = []
     trace = []
@@ -475,6 +520,9 @@ async def agent_chat_stream(user_input: str, session_id: str = None,
                 tools_called.append(tool_name)
                 tool_start_times[tool_name] = time.time()
                 trace.append({"type": "tool_call", "tool": tool_name, "input": tool_input})
+                # Yield human-readable thinking event for UI feedback
+                thinking = _describe_tool_call(tool_name, tool_input)
+                yield {"type": "thinking", "content": thinking}
                 yield {"type": "tool_start", "tool": tool_name, "input": tool_input}
 
             # Tool call completed

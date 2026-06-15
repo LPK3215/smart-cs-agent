@@ -12,9 +12,9 @@
 |------|--------|------|
 | ① 输入预处理层 | 90% | 🟡 可优化 |
 | ② 上下文与记忆层 | 85% | 🟡 可优化 |
-| ③ Agent 推理层 | 85% | 🟡 可优化 |
+| ③ Agent 推理层 | 95% | 🟢 接近完成 |
 | ④ 工具层 | 90% | 🟡 可优化 |
-| ⑤ 输出处理层 | 85% | 🟡 可优化 |
+| ⑤ 输出处理层 | 90% | 🟡 可优化 |
 | ⑥ 持久化与可观测层 | 90% | 🟡 可优化 |
 
 ---
@@ -98,15 +98,15 @@ Agent 的核心大脑，负责决策调用什么工具、如何组合、何时�
   - 涉及文件：`agent.py`, `config.py`
   - 优先级：中
 
-- [ ] **3.2 推理过程中的用户反馈**
-  当前 Agent 在工具调用期间，前端只知道"工具开始/结束"，但缺少自然语言层面的中间反馈（如"我正在帮您查询订单 ORD-xxx 的物流信息…"）。可在 tool_start 事件中注入 LLM 生成的简短说明。
-  - 涉及文件：`agent.py`（agent_chat_stream）
-  - 优先级：中
+- [x] **3.2 推理过程中的用户反馈**
+  新增 `thinking` 事件类型：流式输出中工具调用前会先发送自然语言描述（如"正在查询订单 **ORD-xxx** 的信息…"）。每个工具有定制的中文描述模板（TOOL_DESCRIPTIONS），通过 `_describe_tool_call()` 生成。main.py SSE 流已添加 thinking 事件转发。
+  - 涉及文件：`agent.py`, `main.py`
+  - 优先级：中 ✅ 已完成 2026-06-15
 
-- [ ] **3.3 动态 system prompt**
-  当前 system prompt 是静态硬编码的。可以根据会话上下文动态调整：注入用户画像信息、注入当前时间/日期、根据历史意图调整决策规则权重。
+- [x] **3.3 动态 system prompt**
+  SYSTEM_PROMPT 改为模板，`build_system_prompt()` 每次请求动态注入当前日期时间。Agent 创建不再绑定静态 prompt，通过 SystemMessage 按请求注入。
   - 涉及文件：`agent.py`
-  - 优先级：中
+  - 优先级：中 ✅ 已完成 2026-06-15
 
 - [ ] **3.4 工具调用结果的二次验证**
   当前 Agent 直接使用工具返回的结果生成回答，没有验证环节。对于关键操作（如退款状态），可以加一步验证逻辑确保工具结果合理后再呈现给用户。
@@ -170,10 +170,10 @@ Agent 响应返回给用户前的最后把关。
   - 涉及文件：`main.py`（event_stream）, `guardrails.py`
   - 优先级：中
 
-- [ ] **5.2 响应格式化增强**
-  当前 Agent 输出纯文本。可以支持 Markdown 渲染（表格、列表、代码块），让订单查询结果、故障排查步骤等以更结构化的方式呈现。
-  - 涉及文件：`agent.py`（system prompt 引导）, 前端渲染
-  - 优先级：中
+- [x] **5.2 响应格式化增强**
+  system prompt 新增 Markdown 格式要求：粗体突出关键信息、订单信息用表格、步骤用有序列表、选项用无序列表。
+  - 涉及文件：`agent.py`（system prompt 模板）
+  - 优先级：中 ✅ 已完成 2026-06-15
 
 - [ ] **5.3 置信度驱动的响应策略**
   当前 confidence 值计算了但没有实际用于响应策略。可以：低置信度（<0.5）时主动提示"我不太确定"并建议转人工；高置信度（>0.9）时直接给出答案不附加免责声明。
@@ -239,3 +239,4 @@ Agent 响应返回给用户前的最后把关。
 | 2026-06-15 | — | 项目初始化清理：删除遗留 backend/ 目录、修正 README、修正 .env.example、清理未使用导入 | README.md, .env.example, main.py, agent.py |
 | 2026-06-15 | 2.1 + 4.2 | RAG 向量语义检索：新增 vector_store.py（DashScope text-embedding-v3 + FAISS），改造 search_faq 工具为语义检索优先 + 关键词回退，confidence 改为实际相似度分数 | vector_store.py（新）, agent.py, main.py, config.py, .env.example, requirements.txt |
 | 2026-06-15 | 4.1 + 4.4 | 服务抽象层 + 工具超时：新增 services/ 目录（Protocol 接口 + mock 实现 + DATA_SOURCE 切换），mock 数据从 agent.py 迁出，所有异步工具加 asyncio.wait_for 超时控制 | services/（新目录）, agent.py, config.py, .env.example |
+| 2026-06-15 | 3.2 + 3.3 + 5.2 | 动态 prompt + 推理反馈 + 格式化：system prompt 改为动态模板（注入当前时间），流式新增 thinking 事件（工具调用自然语言描述），prompt 引导 Markdown 格式输出 | agent.py, main.py |

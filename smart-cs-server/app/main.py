@@ -263,6 +263,9 @@ async def chat_stream(req: ChatRequest):
                 full_content += event["content"]
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
+            elif event["type"] == "thinking":
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
             elif event["type"] == "tool_start":
                 tool_traces.append({"type": "tool_call", "tool": event["tool"], "input": event["input"]})
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
