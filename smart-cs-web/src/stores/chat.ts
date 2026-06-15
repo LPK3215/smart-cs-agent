@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, nextTick } from 'vue'
+import { ElMessage } from 'element-plus'
 import type { Session, Message, StreamingToolCall } from '@/types'
 import * as api from '@/utils/api'
 import { parseSSEStream } from '@/utils/sse'
@@ -52,8 +53,10 @@ export const useChatStore = defineStore('chat', () => {
       const s = await api.createSession()
       sessions.value = await api.fetchSessions()
       await switchSession(s.id)
+      ElMessage.success('新对话已创建')
     } catch (e) {
       console.error('Failed to create session:', e)
+      ElMessage.error('创建对话失败，请重试')
     } finally {
       isLoading.value = false
     }
@@ -110,6 +113,7 @@ export const useChatStore = defineStore('chat', () => {
     } catch (streamErr) {
       // Fallback to non-streaming
       console.warn('SSE failed, falling back:', streamErr)
+      ElMessage.warning('流式连接中断，正在重试...')
       isStreaming.value = false
       isTyping.value = true
 
@@ -121,6 +125,7 @@ export const useChatStore = defineStore('chat', () => {
         sessions.value = await api.fetchSessions()
       } catch (e) {
         console.error('Chat failed:', e)
+        ElMessage.error('发送消息失败，请重试')
         const idx = messages.value[sessionId].findIndex(m => m.id === tempUserMsg.id)
         if (idx >= 0) messages.value[sessionId].splice(idx, 1)
       } finally {
@@ -142,8 +147,10 @@ export const useChatStore = defineStore('chat', () => {
         msg._rated = true
         msg._ratedScore = score
       }
+      ElMessage.success('感谢评价！')
     } catch (e) {
       console.error('Rating failed:', e)
+      ElMessage.error('评价提交失败')
     }
   }
 
@@ -152,8 +159,10 @@ export const useChatStore = defineStore('chat', () => {
     try {
       await api.closeSession(currentSessionId.value)
       sessions.value = await api.fetchSessions()
+      ElMessage.success('对话已关闭，记忆已提取')
     } catch (e) {
       console.error('Failed to close session:', e)
+      ElMessage.error('关闭对话失败')
     }
   }
 

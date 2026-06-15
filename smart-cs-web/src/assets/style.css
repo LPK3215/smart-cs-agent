@@ -191,7 +191,10 @@ body {
 
 /* Responsive */
 @media (max-width: 768px) {
-  .sidebar { width: 60px; }
-  .sidebar-header h2 span, .sidebar-header p, .nav-item span:not(.icon), .session-list { display: none; }
   .chart-grid { grid-template-columns: 1fr; }
+  .stat-cards { grid-template-columns: 1fr 1fr; }
+  .msg { max-width: 95%; }
+  .chat-header { padding: 16px 20px 16px 56px; }
+  .info-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
 }

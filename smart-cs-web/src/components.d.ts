@@ -16,12 +16,24 @@ declare module 'vue' {
     ChatHeader: typeof import('./components/chat/ChatHeader.vue')['default']
     ChatInput: typeof import('./components/chat/ChatInput.vue')['default']
     ChatSidebar: typeof import('./components/chat/ChatSidebar.vue')['default']
+    ConversationTable: typeof import('./components/admin/ConversationTable.vue')['default']
+    ElButton: typeof import('element-plus/es')['ElButton']
+    ElTag: typeof import('element-plus/es')['ElTag']
+    IntentChart: typeof import('./components/admin/IntentChart.vue')['default']
     MessageBubble: typeof import('./components/chat/MessageBubble.vue')['default']
     MessageList: typeof import('./components/chat/MessageList.vue')['default']
     QuickActions: typeof import('./components/chat/QuickActions.vue')['default']
+    RatingChart: typeof import('./components/admin/RatingChart.vue')['default']
+    ResolutionBars: typeof import('./components/admin/ResolutionBars.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SessionDetailModal: typeof import('./components/chat/SessionDetailModal.vue')['default']
+    SourceDonut: typeof import('./components/admin/SourceDonut.vue')['default']
+    StatCards: typeof import('./components/admin/StatCards.vue')['default']
     StreamingIndicator: typeof import('./components/chat/StreamingIndicator.vue')['default']
+    ToolStatsTable: typeof import('./components/admin/ToolStatsTable.vue')['default']
+  }
+  export interface GlobalDirectives {
+    vLoading: typeof import('element-plus/es')['ElLoadingDirective']
   }
 }
