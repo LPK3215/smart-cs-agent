@@ -8,6 +8,7 @@
 smart-cs-agent/
 ├── smart-cs-web/       # 前端 — Vue 3 + Vite
 ├── smart-cs-server/    # 后端 — FastAPI + LangChain
+├── data/               # SQLite 数据库（运行时自动生成，已 gitignore）
 └── README.md
 ```
 

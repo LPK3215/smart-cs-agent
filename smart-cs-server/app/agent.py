@@ -14,12 +14,11 @@ Features:
 
 import json
 import time
-import asyncio
 from datetime import datetime
 from typing import AsyncGenerator
 
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.tools import tool
 from langchain.agents import create_agent
 
@@ -30,6 +29,7 @@ from app.config import (
 from app.knowledge_base import FAQ_DATA
 from app.guardrails import sanitize_output
 from app.memory import build_chat_history, summarize_history
+from app.vector_store import search_similar as vector_search, is_initialized as vector_store_ready
 
 
 # ============================================================
@@ -50,7 +50,7 @@ MOCK_REFUNDS = {
 
 
 @tool
-def search_faq(query: str) -> str:
+async def search_faq(query: str) -> str:
     """Search the FAQ knowledge base for answers to common questions.
     Use this when the user asks about policies, procedures, or common issues like
     refunds, orders, coupons, account issues, etc.
@@ -58,6 +58,22 @@ def search_faq(query: str) -> str:
     Args:
         query: The user's question or keywords to search for.
     """
+    # --- Primary: Vector semantic search (RAG) ---
+    if vector_store_ready():
+        results = await vector_search(query, top_k=3)
+        if results:
+            best = results[0]
+            # Threshold: cosine similarity > 0.3 means reasonably related
+            if best["similarity_score"] > 0.3:
+                return json.dumps({
+                    "found": True,
+                    "question": best["question"],
+                    "answer": best["answer"],
+                    "category": best["intent"],
+                    "similarity_score": round(best["similarity_score"], 4),
+                }, ensure_ascii=False)
+
+    # --- Fallback: Keyword-based search ---
     best = None
     best_score = 0
     for faq in FAQ_DATA:
@@ -76,6 +92,7 @@ def search_faq(query: str) -> str:
         return json.dumps({
             "found": True, "question": best["question"],
             "answer": best["answer"], "category": best["intent"],
+            "similarity_score": min(best_score / 20.0, 1.0),  # normalized heuristic score
         }, ensure_ascii=False)
     return json.dumps({"found": False, "message": "未找到匹配的FAQ，建议转人工客服"}, ensure_ascii=False)
 
@@ -319,7 +336,7 @@ def _extract_metadata(messages: list) -> dict:
 
                 if tool_name == "search_faq":
                     source = "faq"
-                    confidence = 0.9
+                    confidence = 0.7  # will be updated with actual similarity_score from response
                 elif tool_name in ("query_order", "check_refund"):
                     source = "system"
                     confidence = 0.95
@@ -337,6 +354,13 @@ def _extract_metadata(messages: list) -> dict:
                 "tool": getattr(msg, 'name', ''),
                 "output": output_data,
             })
+
+            # Extract similarity_score from search_faq response for dynamic confidence
+            tool_name_resp = getattr(msg, 'name', '')
+            if tool_name_resp == "search_faq" and isinstance(output_data, dict):
+                sim_score = output_data.get("similarity_score")
+                if sim_score is not None and isinstance(sim_score, (int, float)):
+                    confidence = max(0.5, min(float(sim_score), 1.0))
 
     if len(tools_called) > 1:
         confidence = min(confidence + 0.05, 1.0)
@@ -543,12 +567,21 @@ def _extract_metadata_from_trace(tools_called: list, trace: list) -> dict:
 
         if tool_name == "search_faq":
             source = "faq"
-            confidence = 0.9
+            confidence = 0.7  # will be updated from trace if similarity_score available
         elif tool_name in ("query_order", "check_refund"):
             source = "system"
             confidence = 0.95
         elif tool_name == "transfer_to_human":
             source = "human"
+
+    # Extract similarity_score from search_faq trace results for dynamic confidence
+    for entry in trace:
+        if entry.get("type") == "tool_result" and entry.get("tool") == "search_faq":
+            output = entry.get("output", {})
+            if isinstance(output, dict):
+                sim_score = output.get("similarity_score")
+                if sim_score is not None and isinstance(sim_score, (int, float)):
+                    confidence = max(0.5, min(float(sim_score), 1.0))
 
     if len(tools_called) > 1:
         confidence = min(confidence + 0.05, 1.0)

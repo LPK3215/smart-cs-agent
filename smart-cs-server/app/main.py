@@ -26,21 +26,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from app.config import CORS_ORIGINS, RATE_LIMIT_PER_MIN, SUMMARY_THRESHOLD
-from app.models import ChatRequest, SessionCreate, SessionUpdate, RatingCreate, SessionClose
+from app.models import ChatRequest, SessionCreate, SessionUpdate, RatingCreate
 from app.database import (
     init_db, create_session_db, get_sessions_db, get_session_db,
     update_session_db, add_message_db, get_messages_db, get_all_messages_db,
     add_rating_db, get_ratings_db, add_tool_audit, get_tool_audit_db,
-    check_rate_limit, get_message_count_db,
+    check_rate_limit,
 )
 from app.agent import agent_chat, agent_chat_stream
 from app.guardrails import validate_input, check_content_safety, sanitize_output
 from app.memory import summarize_history
+from app.knowledge_base import FAQ_DATA
+from app.vector_store import init_vector_store
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    await init_vector_store(FAQ_DATA)
     yield
 
 app = FastAPI(
