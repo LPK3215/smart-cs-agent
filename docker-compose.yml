@@ -1,0 +1,38 @@
+# Smart-CS-Agent — full stack (backend + frontend)
+# Usage:
+#   docker compose up --build
+#   frontend:  http://localhost:8080
+#   backend:   http://localhost:8000/docs
+#
+# For real credentials, create smart-cs-server/.env from .env.example and mount it,
+# or pass environment variables here.
+
+services:
+  backend:
+    build: ./smart-cs-server
+    container_name: smart-cs-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-in-production}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-}
+      - DATA_SOURCE=${DATA_SOURCE:-mock}
+      - LLM_PROVIDER=${LLM_PROVIDER:-deepseek}
+      - EMBEDDING_API_KEY=${EMBEDDING_API_KEY:-}
+    volumes:
+      # Persist SQLite DB + FAISS index across container restarts
+      - backend_data:/app
+    restart: unless-stopped
+
+  frontend:
+    build: ./smart-cs-web
+    container_name: smart-cs-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  backend_data:

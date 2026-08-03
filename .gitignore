@@ -41,3 +41,18 @@ smart-cs-web/node_modules/
 
 # Logs
 *.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Docker
+docker-compose.override.yml
+
+# Index artifacts
+faiss_index/
+chroma_db/
+
+# Real service local dataset (runtime, not source)
+smart-cs-server/app/services/real_data.json

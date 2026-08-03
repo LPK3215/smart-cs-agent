@@ -111,9 +111,11 @@ smart-cs-agent/
 │   │   ├── config.py           # 配置读取
 │   │   ├── models.py           # Pydantic 模型
 │   │   ├── admin_cli.py        # 管理员账号 CLI 工具
-│   │   └── services/           # 服务抽象层 (Protocol + mock)
+│   │   └── services/           # 服务抽象层 (Protocol + mock/real)
 │   │       ├── base.py
 │   │       ├── mock_service.py
+│   │       ├── real_service.py   # 开箱即用的真实数据源参考实现
+│   │       ├── real_data.json    # real 模式种子数据
 │   │       └── __init__.py
 │   ├── .env.example            # 配置模板 (25 项)
 │   ├── requirements.txt
@@ -182,6 +184,57 @@ venv/Scripts/python -m app.admin_cli create-admin <用户名> <密码> [显示�
 venv/Scripts/python -m app.admin_cli list-users
 venv/Scripts/python -m app.admin_cli set-role <用户名> <role>
 ```
+
+## 生产部署与工程化
+
+项目已补齐生产级交付物，可直接容器化部署与 CI 验证。
+
+### Docker 一键部署（推荐）
+
+仓库根目录提供 `docker-compose.yml`，同时构建前后端镜像：
+
+```bash
+# 可选：在 smart-cs-server/.env 中配置真实密钥（该文件已被 .gitignore 忽略）
+docker compose up --build
+# 前端:  http://localhost:8080
+# 后端:  http://localhost:8000/docs
+```
+
+- 后端镜像：`smart-cs-server/Dockerfile`（python:3.11-slim + uvicorn）
+- 前端镜像：`smart-cs-web/Dockerfile`（node:20-alpine 构建 → nginx:1.27 托管，已配置 SPA 回退 + `/api/` 反向代理到后端，支持 SSE 流式）
+- SQLite 数据库通过命名卷 `backend_data` 持久化
+
+### 后端数据源切换（mock ⇄ real）
+
+服务抽象层基于 `Protocol`（`app/services/base.py`）。`mock_service.py` 为演示数据；
+`real_service.py` 为**开箱即用的真实数据源参考实现**（本地 JSON 后端，无需外部依赖）。
+
+```bash
+# smart-cs-server/.env
+DATA_SOURCE=real      # 默认 mock
+```
+
+切换为 `real` 后，Agent 工具调用将走 `real_service.py`（已实现订单/退款/故障诊断三类接口，
+并附带 `real_data.json` 种子数据）。接入自有业务系统时，只需替换 `real_service.py` 中各方法的
+实现（改为调用你的 REST/RPC/DB），Agent 与工具代码零改动。
+
+### 测试
+
+```bash
+cd smart-cs-server
+pip install -r requirements-dev.txt
+python -m pytest -p no:cacheprovider -q
+```
+
+覆盖：Guardrails 三级过滤、JWT 鉴权与密码哈希、服务层 mock/real 双实现、会话/对话/健康检查 API。
+
+### CI
+
+`.github/workflows/ci.yml`：每次 push/PR 自动运行
+- **后端**：安装依赖 + `pytest`
+- **前端**：`npm ci` + `npm run build`
+
+> 注意：`requirements.txt` 已锁定 `langchain>=1.0.0`（代码使用 1.x 稳定的 `create_agent` API）。
 
 ## API 概览
 
