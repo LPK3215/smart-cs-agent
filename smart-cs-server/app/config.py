@@ -41,4 +41,7 @@ RATE_LIMIT_PER_MIN = int(os.getenv("RATE_LIMIT_PER_MIN", "20")) # Per session
 TOOL_TIMEOUT_SEC = int(os.getenv("TOOL_TIMEOUT_SEC", "30"))      # Tool execution timeout
 
 # CORS
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:3000,http://127.0.0.1:5173").split(",")
+CORS_ORIGINS = os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:5173,http://localhost:5174,http://localhost:3000,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080",
+).split(",")

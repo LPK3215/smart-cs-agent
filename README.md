@@ -96,7 +96,9 @@ smart-cs-agent/
 │   │   └── types/              # TypeScript 类型定义
 │   ├── package.json
 │   ├── tsconfig.json
-│   └── vite.config.ts
+│   ├── vite.config.ts
+│   ├── Dockerfile             # node:20 构建 → nginx 托管
+│   └── nginx.conf             # SPA 回退 + /api 反代到 backend
 ├── smart-cs-server/            # 后端 — FastAPI 0.110+ + LangChain 0.3+
 │   ├── app/
 │   │   ├── main.py             # API 路由入口 + lifespan
@@ -119,7 +121,9 @@ smart-cs-agent/
 │   │       └── __init__.py
 │   ├── .env.example            # 配置模板 (25 项)
 │   ├── requirements.txt
-│   └── run.py                  # 启动入口 (uvicorn)
+│   ├── run.py                  # 启动入口 (uvicorn)
+│   └── Dockerfile              # python:3.11-slim + uvicorn
+├── docker-compose.yml          # 前后端一键部署
 ├── docs/                       # 文档与可视化资产
 │   └── scripts/                # SVG 生成脚本
 ├── LICENSE
@@ -202,7 +206,7 @@ docker compose up --build
 
 - 后端镜像：`smart-cs-server/Dockerfile`（python:3.11-slim + uvicorn）
 - 前端镜像：`smart-cs-web/Dockerfile`（node:20-alpine 构建 → nginx:1.27 托管，已配置 SPA 回退 + `/api/` 反向代理到后端，支持 SSE 流式）
-- SQLite 数据库通过命名卷 `backend_data` 持久化
+- SQLite 数据库通过命名卷 `backend_data` 挂到容器 `/app/data`（只持久化数据，不覆盖镜像代码）
 
 ### 后端数据源切换（mock ⇄ real）
 
